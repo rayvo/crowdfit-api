@@ -14,8 +14,20 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
+from rest_framework import routers
+from rest_framework_simplejwt import views as jwt_views
+from crowdfit_api.user import views
+from crowdfit_api import user
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', include('crowdfit_api.user.urls')),
+    # path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    #    path('api/token/', jwt_views.TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    #    path('api/token/refresh/', jwt_views.TokenRefreshView.as_view(), name='token_refresh'),
+    #    path('hello/', views.HelloView.as_view(), name='hello'),
+    #    path('rest-auth/', include('rest_auth.urls')),
+    #    path('rest-auth/registration/', include('rest_auth.registration.urls'))
 ]
