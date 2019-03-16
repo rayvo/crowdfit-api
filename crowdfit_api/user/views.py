@@ -17,6 +17,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from .serializers import UserSerializer
+# my app models
+from crowdfit_api.user.models import Country, City, Address, Apt, Household, Status
+# my app serializers
+from crowdfit_api.user.serializers import CountrySerializers, CitySerializers, AddressSerializers, AptSerializers, \
+    HouseholdSerializers, StatusSerializers
 
 
 # Create your views here.
@@ -30,3 +35,38 @@ class UserViewSet(viewsets.ModelViewSet):
 
     # authentication_classes = (TokenAuthentication,)
     # permission_classes = (IsAuthenticated,)
+
+
+class CountryViewSet(viewsets.ModelViewSet):
+    queryset = Country.objects.all()
+    serializer_class = CountrySerializers
+
+    # def list(self, request, *args, **kwargs):
+    #     family = Family.objects.all()
+    #     serializer = FamilyMiniSerializer(family, many=True)
+    #     return Response(serializer.data)
+
+
+class CityViewSet(viewsets.ModelViewSet):
+    queryset = City.objects.all()
+    serializer_class = CitySerializers
+
+
+class AddressViewSet(viewsets.ModelViewSet):
+    queryset = Address.objects.all()
+    serializer_class = AddressSerializers
+
+
+class AptViewSet(viewsets.ModelViewSet):
+    queryset = Apt.objects.all()
+    serializer_class = AptSerializers
+
+
+class HouseholdViewSet(viewsets.ModelViewSet):
+    queryset = Household.objects.all()
+    serializer_class = HouseholdSerializers
+
+
+class StatusViewSet(viewsets.ModelViewSet):
+    queryset = Status.objects.all()
+    serializer_class = StatusSerializers

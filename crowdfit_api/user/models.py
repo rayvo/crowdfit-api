@@ -57,4 +57,138 @@ class CustomUser(AbstractUser):
     #     db_table = 'api_user' # name table
 
     def __str__(self):
-        return self.email
+        return self.username
+
+
+# Country (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     country VARCHAR(50),
+#     lastUpdate DATETIME
+# )
+class Country(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    country = models.CharField(max_length=50, null=False, blank=False, unique=True)
+    lastUpdate = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.country
+
+
+# City (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     city VARCHAR(50),
+#     countryID INT, → COUNTRY ID
+#     lastUpdate DATETIME
+# )
+class City(models.Model):
+    city = models.CharField(max_length=50, null=False, blank=False, unique=True)  # no 2 cities have the same name
+    country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='cities')  # auto name: country_id
+    lastUpdate = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.city
+
+
+# Address (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     cityID VARCHAR(50) NOT NULL, → CITY ID
+#     addGu VARCHAR(50) NOT NULL,
+#     addDong VARCHAR(50) NOT NULL,
+#     addDetail VARCHAR(100) NOT NULL,
+#     postcode VARCHAR(10) NOT NULL,
+#     phone VARCHAR(15),
+#     lat DECIMAL(10,8) NOT NULL,
+#     lng DECIMAL(11,8) NOT NULL,
+#     lastUpdate DATETIME
+# )
+class Address(models.Model):
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='cities')  # auto name: city_id
+    addGu = models.CharField(max_length=50, null=False)
+    addDong = models.CharField(max_length=50, null=False)
+    addDetail = models.CharField(max_length=100, null=False)
+    postcode = models.CharField(max_length=10, null=False)
+    phone = models.CharField(max_length=15)
+    lat = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=False)
+    lng = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=False)
+    lastUpdate = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.addDetail
+
+
+# APT(
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     name VARCHAR(125) NOT NULL UNIQUE,
+#     addressID INT, → ADDRESS ID
+#     desc VARCHAR(500),
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# );
+class Apt(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=50, null=False, unique=True)
+    # foreign key
+    address = models.ForeignKey(Address, on_delete=models.CASCADE,
+                                related_name='addresses')  # auto generate db column: address_id
+
+    desc = models.CharField(max_length=500, null=True)
+    createDate = models.DateTimeField(auto_now=True)
+    lastUpdate = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+# Household(
+#     id,
+#     aptID, → APT ID
+#     addDong VARCHAR(10),
+#     houseNum VARCHAR(10),
+#     status INT, //0: occupied, 1: available
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# );
+class Household(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    # foreign key
+    apt = models.ForeignKey(Apt, on_delete=models.CASCADE,
+                                related_name='apts')  # auto generate db column: apt_id
+    #
+    addDong = models.CharField(max_length=10, null=True)
+    houseNum = models.CharField(max_length=10, null=True)
+
+    STATUS_CHOICES = (
+        (0, "occupied"),
+        (1, "available")
+    )
+    status = models.IntegerField(choices=STATUS_CHOICES, null=False, blank=False)
+    #
+    createDate = models.DateTimeField(auto_now=True)
+    lastUpdate = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.apt
+
+# Status( //Waiting, approval, eviction
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     name VARCHAR(50) NOT NULL,
+#     desc VARCHAR(256),
+
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class Status(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=50, null=False, blank=False)
+    desc = models.CharField(max_length=256, null=True)
+    #
+    createDate = models.DateTimeField(auto_now=True)
+    lastUpdate = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
