@@ -10,7 +10,8 @@ User = get_user_model()
 
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from crowdfit_api.user.models import Country, City, Address, Apt, Household, Status
+from crowdfit_api.user.models import Country, City, Address, Apt, Household, Status, UserStatus, UserHousehold, Role, \
+    UserRole, Permission, Feature, RoleFeaturePermission, Club, Login, UserExerInfo
 
 
 # TODO: make sure the full info serializer actually has all of the information
@@ -140,3 +141,194 @@ class StatusSerializers(serializers.ModelSerializer):
         model = Status
         fields = ('id', 'name', 'desc')
         extra_kwargs = {'lastUpdate': {'read_only': True}}
+
+
+# UserStatus (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT, → USER ID
+#     status INT, → STATUS ID
+#     staffID INT, → USER ID (can be admin)
+#     isActive BOOLEAN,
+#     fileUrl VARCHAR(256), //등본
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class UserStatusSerializers(serializers.ModelSerializer):
+    users = UserSerializer(many=True, read_only=True)
+    staffs = UserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = UserStatus
+        fields = ('id', 'status', 'user', 'staff', 'users', 'staffs', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# UserHouseHold (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT, → USER ID
+#     householdID INT, → HOUSEHOLD ID
+#     isOwner BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class UserHouseholdSerializers(serializers.ModelSerializer):
+    user_list = UserSerializer(many=True, read_only=True)
+    households = HouseholdSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = UserHousehold
+        fields = ('id', 'user', 'household', 'isOwner', 'user_list', 'households', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# Role ( // Non-member, Employee, Residents, Manager
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     role VARCHAR(30) NOT NULL,
+#     desc TEXT,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# );
+class RoleSerializers(serializers.ModelSerializer):
+    user_list = UserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Role
+        fields = ('id', 'role', 'user_list', 'desc', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# UserRole ( //role
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT,	→ USER ID
+#     roleID INT NOT NULL, → ROLE
+#     isActive BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class UserRoleSerializers(serializers.ModelSerializer):
+    user_userrole_list = UserSerializer(many=True, read_only=True)
+    role_userrole_list = RoleSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = UserRole
+        fields = (
+            'id', 'user', 'role', 'isActive', 'user_userrole_list', 'role_userrole_list', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# Permission ( // View list, Read permission, Write permission, Write comment, Force delete, Hide post
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     name VARCHAR(100) NOT NULL UNIQUE,
+#     desc VARCHAR(255),
+#     createDate DATETIME
+# )
+class PermissionSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = ('id', 'name', 'desc', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# Feature (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     name VARCHAR(100) NOT NULL UNIQUE,
+#     desc VARCHAR(255),
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class FeatureSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Feature
+        fields = ('id', 'name', 'desc', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# RoleFeaturePermission (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     roleID INT NOT NULL, → ROLE ID
+#     featureID INT NOT NULL,, → FEATURE ID
+#     permissionID INT NOT NULL,, → PERMISSION ID
+#     isActive BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class RoleFeaturePermissionSerializers(serializers.ModelSerializer):
+    role_rfp_list = RoleSerializers(many=True, read_only=True)
+    feature_rfp_list = RoleSerializers(many=True, read_only=True)
+    permission_rfp_list = RoleSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = RoleFeaturePermission
+        fields = (
+            'id', 'role', 'feature', 'permission', 'role_rfp_list', 'feature_rfp_list', 'permission_rfp_list',
+            'isActive',
+            'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# Club (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     aptID INT —> APT id
+#     name VARCHAR(125) NOT NULL UNIQUE,
+#     addressID, → ADDRESS ID
+#     phone VARCHAR(11),
+#     clubRegNum VARCHAR(10),
+#     clubRegDate DATETIME,
+#     otNum INT,
+#     otPeriod INT,
+#     desc TEXT,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# );
+class ClubSerializers(serializers.ModelSerializer):
+    apt_club_list = AptSerializers(many=True, read_only=True)
+    address_club_list = AddressSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = Club
+        fields = (
+            'id', 'apt', 'name', 'address', 'phone', 'clubRegNum', 'clubRegDate', 'otNum', 'otPeriod', 'desc',
+            'apt_club_list', 'address_club_list',
+            'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# Login (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT,
+#     loginTime DATETIME,
+#     logoutTime DATETIME,
+#     lastFeatureID INT, → FEATURE ID,
+#     isLast BOOLEAN
+# )
+class LoginSerializers(serializers.ModelSerializer):
+    user_login_list = UserSerializer(many=True, read_only=True)
+    feature_login_list = FeatureSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = Login
+        fields = (
+            'id', 'user', 'loginTime', 'logoutTime', 'lastFeature', 'isLast',
+            'user_login_list', 'feature_login_list',
+            'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+
+
+# UserExerInfo (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID —> User ID
+#     height INT,
+#     weight INT,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class UserExerInfoSerializers(serializers.ModelSerializer):
+    user_uei_list = UserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = UserExerInfo
+        fields = (
+            'id', 'user', 'height', 'weight',
+            'user_uei_list',
+            'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}

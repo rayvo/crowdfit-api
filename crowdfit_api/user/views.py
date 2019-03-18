@@ -18,10 +18,13 @@ from rest_framework.views import APIView
 from rest_framework.decorators import action
 from .serializers import UserSerializer
 # my app models
-from crowdfit_api.user.models import Country, City, Address, Apt, Household, Status
+from crowdfit_api.user.models import Country, City, Address, Apt, Household, Status, UserStatus, UserHousehold, Role, \
+    UserRole, Permission, Feature, RoleFeaturePermission, Club, Login, UserExerInfo
 # my app serializers
 from crowdfit_api.user.serializers import CountrySerializers, CitySerializers, AddressSerializers, AptSerializers, \
-    HouseholdSerializers, StatusSerializers
+    HouseholdSerializers, StatusSerializers, UserStatusSerializers, UserHouseholdSerializers, RoleSerializers, \
+    UserRoleSerializers, PermissionSerializers, FeatureSerializers, RoleFeaturePermissionSerializers, ClubSerializers, \
+    LoginSerializers, UserExerInfoSerializers
 
 
 # Create your views here.
@@ -38,7 +41,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class CountryViewSet(viewsets.ModelViewSet):
-    queryset = Country.objects.all()
+    queryset = Country.objects.all().order_by('-country')
     serializer_class = CountrySerializers
 
     # def list(self, request, *args, **kwargs):
@@ -48,25 +51,75 @@ class CountryViewSet(viewsets.ModelViewSet):
 
 
 class CityViewSet(viewsets.ModelViewSet):
-    queryset = City.objects.all()
+    queryset = City.objects.all().order_by('-city')
     serializer_class = CitySerializers
 
 
 class AddressViewSet(viewsets.ModelViewSet):
-    queryset = Address.objects.all()
+    queryset = Address.objects.all().order_by('-id')
     serializer_class = AddressSerializers
 
 
 class AptViewSet(viewsets.ModelViewSet):
-    queryset = Apt.objects.all()
+    queryset = Apt.objects.all().order_by('-id')
     serializer_class = AptSerializers
 
 
 class HouseholdViewSet(viewsets.ModelViewSet):
-    queryset = Household.objects.all()
+    queryset = Household.objects.all().order_by('-id')
     serializer_class = HouseholdSerializers
 
 
 class StatusViewSet(viewsets.ModelViewSet):
-    queryset = Status.objects.all()
+    queryset = Status.objects.all().order_by('-id')
     serializer_class = StatusSerializers
+
+
+class UserStatusViewSet(viewsets.ModelViewSet):
+    queryset = UserStatus.objects.all().order_by('-id')
+    serializer_class = UserStatusSerializers
+
+
+class UserHouseholdViewSet(viewsets.ModelViewSet):
+    queryset = UserHousehold.objects.all().order_by('-id')
+    serializer_class = UserHouseholdSerializers
+
+
+class RoleViewSet(viewsets.ModelViewSet):
+    queryset = Role.objects.all().order_by('-id')
+    serializer_class = RoleSerializers
+
+
+class UserRoleViewSet(viewsets.ModelViewSet):
+    queryset = UserRole.objects.all().order_by('-id')
+    serializer_class = UserRoleSerializers
+
+
+class PermissionViewSet(viewsets.ModelViewSet):
+    queryset = Permission.objects.all().order_by('-id')
+    serializer_class = PermissionSerializers
+
+
+class FeatureViewSet(viewsets.ModelViewSet):
+    queryset = Feature.objects.all().order_by('-id')
+    serializer_class = FeatureSerializers
+
+
+class RoleFeaturePermissionViewSet(viewsets.ModelViewSet):
+    queryset = RoleFeaturePermission.objects.all().order_by('-id')
+    serializer_class = RoleFeaturePermissionSerializers
+
+
+class ClubViewSet(viewsets.ModelViewSet):
+    queryset = Club.objects.all().order_by('-id')
+    serializer_class = ClubSerializers
+
+
+class LoginViewSet(viewsets.ModelViewSet):
+    queryset = Login.objects.all().order_by('-id')
+    serializer_class = LoginSerializers
+
+
+class UserExerInfoViewSet(viewsets.ModelViewSet):
+    queryset = UserExerInfo.objects.all().order_by('-id')
+    serializer_class = UserExerInfoSerializers
