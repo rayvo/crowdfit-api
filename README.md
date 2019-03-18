@@ -13,6 +13,8 @@ ADD:
 
 	pymysql.install_as_MySQLdb()
 
+pip install django-cors-headers
+
 -pip install django-phonenumber-field
 
 -pip install phonenumbers
