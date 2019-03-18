@@ -12,6 +12,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from crowdfit_api.user.models import Country, City, Address, Apt, Household, Status, UserStatus, UserHousehold, Role, \
     UserRole, Permission, Feature, RoleFeaturePermission, Club, Login, UserExerInfo
+from crowdfit_api import settings
 
 
 # TODO: make sure the full info serializer actually has all of the information
@@ -52,7 +53,8 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
 class CitySerializers(serializers.ModelSerializer):
     class Meta:
         model = City
-        fields = ('id', 'city', 'country')
+        fields = ('id', 'city', 'country', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # Country (
@@ -92,6 +94,7 @@ class AddressSerializers(serializers.ModelSerializer):
     class Meta:
         model = Address
         fields = ('id', 'addGu', 'addDong', 'addDetail', 'postcode', 'phone', 'lat', 'lng', 'city', 'cities')
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # APT(
@@ -107,7 +110,9 @@ class AptSerializers(serializers.ModelSerializer):
 
     class Meta:
         model = Apt
-        fields = ('id', 'name', 'desc', 'address', 'addresses')
+        fields = ('id', 'name', 'desc', 'address', 'addresses', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # Household(
@@ -124,8 +129,9 @@ class HouseholdSerializers(serializers.ModelSerializer):
 
     class Meta:
         model = Household
-        fields = ('id', 'addDong', 'houseNum', 'status', 'apt', 'apts')
-        extra_kwargs = {'lastUpdate': {'read_only': True}}
+        fields = ('id', 'addDong', 'houseNum', 'status', 'apt', 'apts', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # Status( //Waiting, approval, eviction
@@ -139,8 +145,9 @@ class HouseholdSerializers(serializers.ModelSerializer):
 class StatusSerializers(serializers.ModelSerializer):
     class Meta:
         model = Status
-        fields = ('id', 'name', 'desc')
-        extra_kwargs = {'lastUpdate': {'read_only': True}}
+        fields = ('id', 'name', 'desc', 'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # UserStatus (
@@ -160,7 +167,8 @@ class UserStatusSerializers(serializers.ModelSerializer):
     class Meta:
         model = UserStatus
         fields = ('id', 'status', 'user', 'staff', 'users', 'staffs', 'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # UserHouseHold (
@@ -178,7 +186,8 @@ class UserHouseholdSerializers(serializers.ModelSerializer):
     class Meta:
         model = UserHousehold
         fields = ('id', 'user', 'household', 'isOwner', 'user_list', 'households', 'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # Role ( // Non-member, Employee, Residents, Manager
@@ -194,7 +203,8 @@ class RoleSerializers(serializers.ModelSerializer):
     class Meta:
         model = Role
         fields = ('id', 'role', 'user_list', 'desc', 'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # UserRole ( //role
@@ -213,7 +223,8 @@ class UserRoleSerializers(serializers.ModelSerializer):
         model = UserRole
         fields = (
             'id', 'user', 'role', 'isActive', 'user_userrole_list', 'role_userrole_list', 'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # Permission ( // View list, Read permission, Write permission, Write comment, Force delete, Hide post
@@ -226,7 +237,8 @@ class PermissionSerializers(serializers.ModelSerializer):
     class Meta:
         model = Permission
         fields = ('id', 'name', 'desc', 'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # Feature (
@@ -240,7 +252,8 @@ class FeatureSerializers(serializers.ModelSerializer):
     class Meta:
         model = Feature
         fields = ('id', 'name', 'desc', 'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # RoleFeaturePermission (
@@ -263,7 +276,8 @@ class RoleFeaturePermissionSerializers(serializers.ModelSerializer):
             'id', 'role', 'feature', 'permission', 'role_rfp_list', 'feature_rfp_list', 'permission_rfp_list',
             'isActive',
             'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # Club (
@@ -290,7 +304,8 @@ class ClubSerializers(serializers.ModelSerializer):
             'id', 'apt', 'name', 'address', 'phone', 'clubRegNum', 'clubRegDate', 'otNum', 'otPeriod', 'desc',
             'apt_club_list', 'address_club_list',
             'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # Login (
@@ -311,7 +326,8 @@ class LoginSerializers(serializers.ModelSerializer):
             'id', 'user', 'loginTime', 'logoutTime', 'lastFeature', 'isLast',
             'user_login_list', 'feature_login_list',
             'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
 
 
 # UserExerInfo (
@@ -331,4 +347,5 @@ class UserExerInfoSerializers(serializers.ModelSerializer):
             'id', 'user', 'height', 'weight',
             'user_uei_list',
             'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True}, 'createDate': {'read_only': True}}
+        extra_kwargs = {'lastUpdate': {'read_only': True, 'format': settings.DATETIME_FORMAT},
+                        'createDate': {'read_only': True, 'format': settings.DATETIME_FORMAT}}
