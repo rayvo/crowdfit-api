@@ -22,12 +22,12 @@ DEBUG = True
 # 210.105.48.120 is clubfit's public ip server
 # 192.168.1.6 is clubfit's private ip server
 # 192.168.0.5 is Haseung's local workspace
-# ALLOWED_HOSTS = [
-#     '210.105.48.120',
-#     '192.168.1.6',
-#     '192.168.0.5',
-#     ]
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+     '210.105.48.120',
+     '192.168.1.6',
+     '192.168.0.5',
+     ]
+#ALLOWED_HOSTS = []
 # 192.168.0.x is the local IP gateway for clubfit
 # CORS_ORIGIN_WHITELIST = (
 #     'localhost:4200',
@@ -104,7 +104,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'crowdfitdb',
         'USER': 'root',
-        'PASSWORD': '123456',
+        'PASSWORD': 'c210120f',
         'HOST': '127.0.0.1',
         'PORT': '3306'
     }
