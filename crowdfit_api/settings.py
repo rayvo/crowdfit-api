@@ -145,6 +145,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 # TODO: implement authentication and permission
 REST_FRAMEWORK = {
+
+    # 'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S (%z)',
+    #
     'UNAUTHENTICATED_USER': None,
     'DEFAULT_PERMISSION_CLASSES': [
         # 'rest_framework.permissions.IsAuthenticated',
@@ -152,7 +155,14 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        # https://www.django-rest-framework.org/api-guide/authentication/
         # 'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # Basic authentication is generally only appropriate for testing.
+        # 'rest_framework.authentication.BasicAuthentication',
+        # Token authentication is appropriate for client-server setups, such as native desktop and mobile clients.
+        # The curl command line tool may be useful for testing token authenticated APIs. For example:
+        # curl -X GET http://127.0.0.1:8000/api/example/ -H 'Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b'
+        # Note: If you use TokenAuthentication in production you must ensure that your API is only available over https.
         'rest_framework.authentication.TokenAuthentication',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
@@ -174,13 +184,10 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
-
+# A boolean that specifies if localized formatting of data will be enabled by default or not
 USE_L10N = True
 
 USE_TZ = True
-
-DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
-# DATETIME_INPUT_FORMATS = '%Y-%m-%d %H:%M:%S'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
