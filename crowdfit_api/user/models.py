@@ -34,10 +34,10 @@ class CustomUser(AbstractUser):
     # id = models.AutoField(primary_key=True)
     email = models.EmailField(validators=[validate_email], verbose_name='email address', max_length=255, null=False,
                               unique=True, blank=False)
-    fullname = models.CharField(max_length=150, null=False, blank=False)
-    nickname = models.CharField(max_length=50, null=False, unique=True, blank=False)
-    # password = models.CharField(max_length=256, null=False, blank=False)
-    birthday = models.DateField(null=False, blank=False)
+    fullname = models.CharField(max_length=150, null=True, blank=False)
+    nickname = models.CharField(max_length=50, null=True, unique=True, blank=False)
+    # password = models.CharField(max_length=256, null=False, blank=False) # auto generated field
+    birthday = models.DateField(null=True, blank=False)
 
     # phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
     # phone_number = models.CharField(validators=[phone_regex], max_length=17, default='+82', blank=True) # validators should be a list
@@ -49,7 +49,9 @@ class CustomUser(AbstractUser):
     )
     gender = models.PositiveSmallIntegerField(choices=GENDER_CHOICES, null=True, blank=True)
     bloodType = models.CharField(max_length=3, null=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True, null=True)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     # profile_photo = models.ImageField(upload_to='./media', blank=True, verbose_name="Profile Picture")
 
@@ -69,7 +71,9 @@ class Country(models.Model):
     # ID is by default
     # id = models.AutoField(primary_key=True)
     country = models.CharField(max_length=50, null=False, blank=False, unique=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.country
@@ -84,7 +88,9 @@ class Country(models.Model):
 class City(models.Model):
     city = models.CharField(max_length=50, null=False, blank=False, unique=True)  # no 2 cities have the same name
     country = models.ForeignKey(Country, on_delete=models.CASCADE, related_name='cities')  # auto name: country_id
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.city
@@ -111,7 +117,9 @@ class Address(models.Model):
     phone = models.CharField(max_length=15)
     lat = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=False)
     lng = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=False)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.addDetail
@@ -134,8 +142,9 @@ class Apt(models.Model):
                                 related_name='addresses')  # auto generate db column: address_id
 
     desc = models.CharField(max_length=500, null=True)
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
@@ -165,8 +174,8 @@ class Household(models.Model):
     )
     status = models.IntegerField(choices=STATUS_CHOICES, null=False, blank=False)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return str(self.id)
@@ -186,8 +195,8 @@ class Status(models.Model):
     name = models.CharField(max_length=50, null=False, blank=False)
     desc = models.CharField(max_length=256, null=True)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
@@ -210,8 +219,8 @@ class UserStatus(models.Model):
     staff = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='staffs')
     fileUrl = models.CharField(max_length=256, null=True)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.id
@@ -232,8 +241,8 @@ class UserHousehold(models.Model):
     household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name='households')
     isOwner = models.BooleanField(default=False)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.id
@@ -252,8 +261,8 @@ class Role(models.Model):
     role = models.CharField(max_length=30, null=False, blank=False)
     desc = models.TextField(null=True)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.role
@@ -274,8 +283,8 @@ class UserRole(models.Model):
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='role_userrole_list')
     isActive = models.BooleanField(default=False)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.id
@@ -293,8 +302,8 @@ class Permission(models.Model):
     name = models.CharField(max_length=100, null=False, blank=False, unique=True)
     desc = models.TextField(null=True)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
@@ -313,8 +322,8 @@ class Feature(models.Model):
     name = models.CharField(max_length=100, null=False, blank=False, unique=True)
     desc = models.TextField(null=True)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
@@ -337,8 +346,8 @@ class RoleFeaturePermission(models.Model):
     permission = models.ForeignKey(Permission, on_delete=models.CASCADE, related_name='permission_rfp_list')
     isActive = models.BooleanField(default=False)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.id
@@ -371,8 +380,8 @@ class Club(models.Model):
     otPeriod = models.IntegerField()
     desc = models.TextField()
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
@@ -395,8 +404,8 @@ class Login(models.Model):
     lastFeature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name='feature_login_list')
     isLast = models.BooleanField(default=False)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.id
@@ -417,8 +426,8 @@ class UserExerInfo(models.Model):
     height = models.IntegerField(default=0)
     weight = models.IntegerField(default=0)
     #
-    createDate = models.DateTimeField(auto_now=True)
-    lastUpdate = models.DateTimeField(auto_now_add=True)
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.id
