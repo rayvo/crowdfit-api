@@ -39,9 +39,10 @@ class CustomUser(AbstractUser):
     # password = models.CharField(max_length=256, null=False, blank=False) # auto generated field
     birthday = models.DateField(null=True, blank=False)
 
-    # phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999999999'. Up to 15 digits allowed.")
+    # phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999 999 999'. Up to 15 digits allowed.")
+    phone_regex = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$', message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
     # phone_number = models.CharField(validators=[phone_regex], max_length=17, default='+82', blank=True) # validators should be a list
-    phone = models.CharField(max_length=15, null=True)
+    phone = models.CharField(max_length=15, null=True, validators=[phone_regex])
 
     GENDER_CHOICES = (
         (1, "Male"),
