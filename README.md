@@ -23,5 +23,6 @@ ADD:
 
 #install api for phone verification. https://www.twilio.com/
 -pip install authy
+-pip install Pillow
 
 -python manage.py migrate
