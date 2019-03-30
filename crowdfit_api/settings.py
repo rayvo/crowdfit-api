@@ -27,6 +27,7 @@ ALLOWED_HOSTS = [
     '192.168.1.6',
     '192.168.0.5',
     '127.0.0.1',
+    'localhost',
 ]
 # ALLOWED_HOSTS = []
 # 192.168.0.x is the local IP gateway for clubfit
@@ -109,9 +110,9 @@ DATABASES = {
         'OPTIONS': {
             'read_default_file': 'crowdfit_api/dbproperties.cnf',
         },
-        # 'NAME': 'crowdfitdb',
-        # 'USER': 'root',
-        # 'PASSWORD': 'c210120f',
+         'NAME': 'crowdfitdb',
+         'USER': 'root',
+         'PASSWORD': 'duyvolam',
         # 'HOST': '127.0.0.1',
         # 'PORT': '3306'
     }
@@ -190,13 +191,16 @@ ACCOUNT_SECURITY_API_KEY='vhsI4eiZgMNopCTjsLPpPXmJIv12VaBV'
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+
+
 
 USE_I18N = True
 # A boolean that specifies if localized formatting of data will be enabled by default or not
 USE_L10N = True
 
 USE_TZ = True
+TIME_ZONE = 'Asia/Seoul'
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
