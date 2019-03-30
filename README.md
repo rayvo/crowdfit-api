@@ -13,7 +13,7 @@ ADD:
 
 	pymysql.install_as_MySQLdb()
 
-pip install django-cors-headers
+-pip install mysqlclient
 
 -pip install django-phonenumber-field
 
@@ -22,6 +22,15 @@ pip install django-cors-headers
 -pip install djangorestframework_simplejwt
 
 #install api for phone verification. https://www.twilio.com/
+
 -pip install authy
 
+-pip install Pillow
+
+-Create Database: CREATE DATABASE crowdfitdb CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+-Modify setting file to change the password for your root db
+
 -python manage.py migrate
+
+-python manage.py createsuperuser --email taeyuim@naver.com --username admin
