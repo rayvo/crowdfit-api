@@ -11,7 +11,7 @@ User = get_user_model()
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from crowdfit_api.user.models import Country, City, Address, Apt, Household, Status, UserStatus, UserHousehold, Role, \
-    UserRole, Permission, Feature, RoleFeaturePermission, Club, Login, UserExerInfo
+    UserRole, Permission, Feature, RoleFeaturePermission, Club, Login, UserExerInfo, Department, DepartmentRole
 
 
 # TODO: make sure the full info serializer actually has all of the information
@@ -159,7 +159,6 @@ class StatusSerializers(serializers.ModelSerializer):
 #     userID INT, → USER ID
 #     status INT, → STATUS ID
 #     staffID INT, → USER ID (can be admin)
-#     isActive BOOLEAN,
 #     fileUrl VARCHAR(256), //등본
 #     createDate DATETIME,
 #     lastUpdate DATETIME
@@ -167,10 +166,12 @@ class StatusSerializers(serializers.ModelSerializer):
 class UserStatusSerializers(serializers.ModelSerializer):
     users = UserSerializer(many=True, read_only=True)
     staffs = UserSerializer(many=True, read_only=True)
+    status_list = StatusSerializers(many=True, read_only=True)
 
     class Meta:
         model = UserStatus
-        fields = ('id', 'status', 'user', 'staff', 'users', 'staffs', 'createDate', 'lastUpdate')
+        fields = (
+            'id', 'status', 'fileUrl', 'user', 'staff', 'users', 'staffs', 'status_list', 'createDate', 'lastUpdate')
         extra_kwargs = {'lastUpdate': {'read_only': True},
                         'createDate': {'read_only': True}}
 
@@ -202,31 +203,10 @@ class UserHouseholdSerializers(serializers.ModelSerializer):
 #     lastUpdate DATETIME
 # );
 class RoleSerializers(serializers.ModelSerializer):
-    user_list = UserSerializer(many=True, read_only=True)
-
     class Meta:
         model = Role
-        fields = ('id', 'role', 'user_list', 'desc', 'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True},
-                        'createDate': {'read_only': True}}
-
-
-# UserRole ( //role
-#     id INT AUTO_INCREMENT PRIMARY KEY,
-#     userID INT,	→ USER ID
-#     roleID INT NOT NULL, → ROLE
-#     isActive BOOLEAN,
-#     createDate DATETIME,
-#     lastUpdate DATETIME
-# )
-class UserRoleSerializers(serializers.ModelSerializer):
-    user_userrole_list = UserSerializer(many=True, read_only=True)
-    role_userrole_list = RoleSerializers(many=True, read_only=True)
-
-    class Meta:
-        model = UserRole
-        fields = (
-            'id', 'user', 'role', 'isActive', 'user_userrole_list', 'role_userrole_list', 'createDate', 'lastUpdate')
+        fields = ('id', 'role', 'desc',
+                  'createDate', 'lastUpdate')
         extra_kwargs = {'lastUpdate': {'read_only': True},
                         'createDate': {'read_only': True}}
 
@@ -256,30 +236,6 @@ class FeatureSerializers(serializers.ModelSerializer):
     class Meta:
         model = Feature
         fields = ('id', 'name', 'desc', 'createDate', 'lastUpdate')
-        extra_kwargs = {'lastUpdate': {'read_only': True},
-                        'createDate': {'read_only': True}}
-
-
-# RoleFeaturePermission (
-#     id INT AUTO_INCREMENT PRIMARY KEY,
-#     roleID INT NOT NULL, → ROLE ID
-#     featureID INT NOT NULL,, → FEATURE ID
-#     permissionID INT NOT NULL,, → PERMISSION ID
-#     isActive BOOLEAN,
-#     createDate DATETIME,
-#     lastUpdate DATETIME
-# )
-class RoleFeaturePermissionSerializers(serializers.ModelSerializer):
-    role_rfp_list = RoleSerializers(many=True, read_only=True)
-    feature_rfp_list = RoleSerializers(many=True, read_only=True)
-    permission_rfp_list = RoleSerializers(many=True, read_only=True)
-
-    class Meta:
-        model = RoleFeaturePermission
-        fields = (
-            'id', 'role', 'feature', 'permission', 'role_rfp_list', 'feature_rfp_list', 'permission_rfp_list',
-            'isActive',
-            'createDate', 'lastUpdate')
         extra_kwargs = {'lastUpdate': {'read_only': True},
                         'createDate': {'read_only': True}}
 
@@ -350,6 +306,118 @@ class UserExerInfoSerializers(serializers.ModelSerializer):
         fields = (
             'id', 'user', 'height', 'weight',
             'user_uei_list',
+            'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True},
+                        'createDate': {'read_only': True}}
+
+
+# UserAvatar (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT, → USER ID
+#     url VARCHAR(1024) NOT NULL,
+# )
+class UserAvatarSerializers(serializers.ModelSerializer):
+    user_ua_list = UserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = UserExerInfo
+        fields = (
+            'id', 'user', 'url',
+            'user_ua_list',
+            'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True},
+                        'createDate': {'read_only': True}}
+
+
+# Department ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     name VARCHAR(125) NOT NULL,
+#     aptID INT, →  APT ID
+#     desc VARCHAR(500),
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# );
+class DepartmentSerializers(serializers.ModelSerializer):
+    apt_dep_list = AptSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = Department
+        fields = (
+            'id', 'name',
+            'apt', 'apt_dep_list'
+                   'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True},
+                        'createDate': {'read_only': True}}
+
+
+# DepartmentRole ( //each department has different roles for members
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     departmentID INT NOT NULL,	→ DEPARTMENT ID
+#     roleID INT NOT NULL, → ROLE
+#     isActive BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# );
+class DepartmentRoleSerializers(serializers.ModelSerializer):
+    dep_deprole_list = DepartmentSerializers(many=True, read_only=True)
+    role_deprole_list = RoleSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = DepartmentRole
+        fields = (
+            'id',
+            'department', 'dep_deprole_list',
+            'role', 'role_deprole_list',
+            'isActive',
+            'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True},
+                        'createDate': {'read_only': True}}
+
+
+# UserRole ( //assign role to each member in one department
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT,	→ USER ID
+#     departmentRoleID INT NOT NULL, → DEPARTMENT ROLE
+#     isActive BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class UserRoleSerializers(serializers.ModelSerializer):
+    user_userrole_list = UserSerializer(many=True, read_only=True)
+    deprole_userrole_list = DepartmentRoleSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = UserRole
+        fields = (
+            'id', 'user', 'user_userrole_list',
+            'departmentRole', 'deprole_userrole_list',
+            'isActive',
+            'createDate', 'lastUpdate')
+        extra_kwargs = {'lastUpdate': {'read_only': True},
+                        'createDate': {'read_only': True}}
+
+
+# RoleFeaturePermission (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     departmentRole INT NOT NULL, → DepartmentRole ID
+#     featureID INT NOT NULL, → FEATURE ID
+#     permissionID INT NOT NULL, → PERMISSION ID
+#     isActive BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class RoleFeaturePermissionSerializers(serializers.ModelSerializer):
+    deprole_rfp_list = DepartmentRoleSerializers(many=True, read_only=True)
+    feature_rfp_list = RoleSerializers(many=True, read_only=True)
+    permission_rfp_list = RoleSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = RoleFeaturePermission
+        fields = (
+            'id', 'departmentRole', 'deprole_rfp_list',
+            'feature', 'feature_rfp_list',
+            'permission', 'permission_rfp_list',
+            'isActive',
             'createDate', 'lastUpdate')
         extra_kwargs = {'lastUpdate': {'read_only': True},
                         'createDate': {'read_only': True}}

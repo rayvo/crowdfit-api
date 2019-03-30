@@ -9,22 +9,17 @@ from __future__ import unicode_literals
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
-from django.shortcuts import render
 from rest_framework import viewsets
-from rest_framework.authentication import TokenAuthentication
-# from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.decorators import action
-from .serializers import UserSerializer
 # my app models
 from crowdfit_api.user.models import Country, City, Address, Apt, Household, Status, UserStatus, UserHousehold, Role, \
-    UserRole, Permission, Feature, RoleFeaturePermission, Club, Login, UserExerInfo
+    UserRole, Permission, Feature, RoleFeaturePermission, Club, Login, UserExerInfo, UserAvatar, Department, \
+    DepartmentRole
 # my app serializers
-from crowdfit_api.user.serializers import CountrySerializers, CitySerializers, AddressSerializers, AptSerializers, \
-    HouseholdSerializers, StatusSerializers, UserStatusSerializers, UserHouseholdSerializers, RoleSerializers, \
-    UserRoleSerializers, PermissionSerializers, FeatureSerializers, RoleFeaturePermissionSerializers, ClubSerializers, \
-    LoginSerializers, UserExerInfoSerializers
+from crowdfit_api.user.serializers import UserSerializer, CountrySerializers, CitySerializers, AddressSerializers, \
+    AptSerializers, HouseholdSerializers, StatusSerializers, UserStatusSerializers, UserHouseholdSerializers, \
+    RoleSerializers, UserRoleSerializers, PermissionSerializers, FeatureSerializers, RoleFeaturePermissionSerializers, \
+    ClubSerializers, LoginSerializers, UserExerInfoSerializers, UserAvatarSerializers, DepartmentSerializers, \
+    DepartmentRoleSerializers
 
 
 # Create your views here.
@@ -123,3 +118,18 @@ class LoginViewSet(viewsets.ModelViewSet):
 class UserExerInfoViewSet(viewsets.ModelViewSet):
     queryset = UserExerInfo.objects.all().order_by('-id')
     serializer_class = UserExerInfoSerializers
+
+
+class UserAvatarViewSet(viewsets.ModelViewSet):
+    queryset = UserAvatar.objects.all().order_by('-id')
+    serializer_class = UserAvatarSerializers
+
+
+class DepartmentViewSet(viewsets.ModelViewSet):
+    queryset = Department.objects.all().order_by('-id')
+    serializer_class = DepartmentSerializers
+
+
+class DepartmentRoleViewSet(viewsets.ModelViewSet):
+    queryset = DepartmentRole.objects.all().order_by('-id')
+    serializer_class = DepartmentRoleSerializers

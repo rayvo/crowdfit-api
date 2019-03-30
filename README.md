@@ -21,4 +21,7 @@ pip install django-cors-headers
 
 -pip install djangorestframework_simplejwt
 
+#install api for phone verification. https://www.twilio.com/
+-pip install authy
+
 -python manage.py migrate

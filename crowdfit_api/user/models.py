@@ -30,6 +30,10 @@ from django.core.validators import validate_email
 #     lastUpdate DATETIME
 # );
 class CustomUser(AbstractUser):
+    EMAIL_FIELD = 'email'
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['email']
+    # USERNAME_FIELD = 'email'
     # ID is by default
     # id = models.AutoField(primary_key=True)
     email = models.EmailField(validators=[validate_email], verbose_name='email address', max_length=255, null=False,
@@ -40,7 +44,8 @@ class CustomUser(AbstractUser):
     birthday = models.DateField(null=True, blank=False)
 
     # phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999 999 999'. Up to 15 digits allowed.")
-    phone_regex = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$', message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
+    phone_regex = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$',
+                                 message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
     # phone_number = models.CharField(validators=[phone_regex], max_length=17, default='+82', blank=True) # validators should be a list
     phone = models.CharField(max_length=15, null=True, validators=[phone_regex])
 
@@ -110,7 +115,8 @@ class City(models.Model):
 #     lastUpdate DATETIME
 # )
 class Address(models.Model):
-    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='cities')  # auto name: city_id
+    # auto name: city_id
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='cities')
     addGu = models.CharField(max_length=50, null=False)
     addDong = models.CharField(max_length=50, null=False)
     addDetail = models.CharField(max_length=100, null=False)
@@ -138,9 +144,8 @@ class Apt(models.Model):
     # ID is by default
     # id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50, null=False, unique=True)
-    # foreign key
-    address = models.ForeignKey(Address, on_delete=models.CASCADE,
-                                related_name='addresses')  # auto generate db column: address_id
+    # foreign key, auto generate db column: address_id
+    address = models.ForeignKey(Address, on_delete=models.CASCADE, related_name='addresses')
 
     desc = models.CharField(max_length=500, null=True)
     #
@@ -203,30 +208,6 @@ class Status(models.Model):
         return self.name
 
 
-# UserStatus (
-#     id INT AUTO_INCREMENT PRIMARY KEY,
-#     userID INT, → USER ID
-#     status INT, → STATUS ID
-#     staffID INT, → USER ID (can be admin)
-#     fileUrl VARCHAR(256), //등본
-#     createDate DATETIME,
-#     lastUpdate DATETIME
-# )
-class UserStatus(models.Model):
-    # ID is by default
-    # id = models.AutoField(primary_key=True)
-    status = models.IntegerField(null=False, blank=False)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='users')
-    staff = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='staffs')
-    fileUrl = models.CharField(max_length=256, null=True)
-    #
-    createDate = models.DateTimeField(auto_now_add=True)
-    lastUpdate = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.id
-
-
 # UserHouseHold (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     userID INT, → USER ID
@@ -249,7 +230,7 @@ class UserHousehold(models.Model):
         return self.id
 
 
-# Role ( //비회원, 직원, 입주민, 관리자
+# Role ( //비회원, 직원, 입주민, 관리자 Non-member, residents, lecturer, representative, IT dev, manager, ...
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     role VARCHAR(30) NOT NULL,
 #     desc TEXT,
@@ -267,28 +248,6 @@ class Role(models.Model):
 
     def __str__(self):
         return self.role
-
-
-# UserRole ( //role
-#     id INT AUTO_INCREMENT PRIMARY KEY,
-#     userID INT,	→ USER ID
-#     roleID INT NOT NULL, → ROLE
-#     isActive BOOLEAN,
-#     createDate DATETIME,
-#     lastUpdate DATETIME
-# )
-class UserRole(models.Model):
-    # ID is by default
-    # id = models.AutoField(primary_key=True)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_userrole_list')
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='role_userrole_list')
-    isActive = models.BooleanField(default=False)
-    #
-    createDate = models.DateTimeField(auto_now_add=True)
-    lastUpdate = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.id
 
 
 # Permission ( // View list, Read permission, Write permission, Write comment, Force delete, Hide post
@@ -328,30 +287,6 @@ class Feature(models.Model):
 
     def __str__(self):
         return self.name
-
-
-# RoleFeaturePermission (
-#     id INT AUTO_INCREMENT PRIMARY KEY,
-#     roleID INT NOT NULL, → ROLE ID
-#     featureID INT NOT NULL,, → FEATURE ID
-#     permissionID INT NOT NULL,, → PERMISSION ID
-#     isActive BOOLEAN,
-#     createDate DATETIME,
-#     lastUpdate DATETIME
-# )
-class RoleFeaturePermission(models.Model):
-    # ID is by default
-    # id = models.AutoField(primary_key=True)
-    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='role_rfp_list')
-    feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name='feature_rfp_list')
-    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, related_name='permission_rfp_list')
-    isActive = models.BooleanField(default=False)
-    #
-    createDate = models.DateTimeField(auto_now_add=True)
-    lastUpdate = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.id
 
 
 # Club (
@@ -426,6 +361,139 @@ class UserExerInfo(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_uei_list')
     height = models.IntegerField(default=0)
     weight = models.IntegerField(default=0)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.id
+
+
+# UserAvatar (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT, → USER ID
+#     url VARCHAR(1024) NOT NULL,
+# )
+class UserAvatar(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_ua_list')
+    url_image = models.ImageField(max_length=None, null=False, upload_to='./pictures')
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.id
+
+
+# Department ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     name VARCHAR(125) NOT NULL,
+#     aptID INT, →  APT ID
+#     desc VARCHAR(500),
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# );
+class Department(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=125, null=False)
+    apt = models.ForeignKey(Apt, on_delete=models.CASCADE, related_name='apt_dep_list')
+    desc = models.CharField(max_length=500)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
+# DepartmentRole ( //each department has different roles for members
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     departmentID INT NOT NULL,	→ DEPARTMENT ID
+#     roleID INT NOT NULL, → ROLE
+#     isActive BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# );
+class DepartmentRole(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='dep_deprole_list')
+    role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name='role_deprole_list')
+    isActive = models.BooleanField(null=False)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.id
+
+
+# UserRole ( //assign role to each member in one department
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT,	→ USER ID
+#     departmentRoleID INT NOT NULL, → DEPARTMENT ROLE
+#     isActive BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class UserRole(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_userrole_list')
+    departmentRole = models.ForeignKey(DepartmentRole, on_delete=models.CASCADE, related_name='deprole_userrole_list')
+    isActive = models.BooleanField(default=False)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.id
+
+
+# RoleFeaturePermission (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     departmentRole INT NOT NULL, → DepartmentRole ID
+#     featureID INT NOT NULL, → FEATURE ID
+#     permissionID INT NOT NULL, → PERMISSION ID
+#     isActive BOOLEAN,
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class RoleFeaturePermission(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    departmentRole = models.ForeignKey(DepartmentRole, on_delete=models.CASCADE, related_name='deprole_rfp_list')
+    feature = models.ForeignKey(Feature, on_delete=models.CASCADE, related_name='feature_rfp_list')
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, related_name='permission_rfp_list')
+    isActive = models.BooleanField(default=False)
+    #
+    createDate = models.DateTimeField(auto_now_add=True)
+    lastUpdate = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.id
+
+
+# UserStatus (
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     userID INT, → USER ID
+#     status INT, → STATUS ID
+#     staffID INT, → USER ID (can be admin)
+#     fileUrl VARCHAR(256), //등본
+#     createDate DATETIME,
+#     lastUpdate DATETIME
+# )
+class UserStatus(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='users')
+    staff = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='staffs', null=True)
+    status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list')
+    #
+    fileUrl = models.CharField(max_length=256, null=True, blank=True)
     #
     createDate = models.DateTimeField(auto_now_add=True)
     lastUpdate = models.DateTimeField(auto_now=True)

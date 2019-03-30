@@ -1,7 +1,6 @@
 from crowdfit_api.user import views
 from django.urls import include, path
 from rest_framework import routers
-from rest_framework.authtoken.views import ObtainAuthToken
 
 router = routers.DefaultRouter()
 router.register('users', views.UserViewSet)
@@ -21,11 +20,12 @@ router.register('rolefeaturepermission', views.RoleFeaturePermissionViewSet)
 router.register('club', views.ClubViewSet)
 router.register('login', views.LoginViewSet)
 router.register('userexerinfo', views.UserExerInfoViewSet)
+router.register('useravatar', views.UserAvatarViewSet)
+router.register('department', views.DepartmentViewSet)
+router.register('departmentrole', views.DepartmentRoleViewSet)
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [
     path('', include(router.urls)),
-    path('auth/', ObtainAuthToken.as_view()),
-    # path('aptdata/', views.AptDataRequest, name='aptdatarequest'),
 ]

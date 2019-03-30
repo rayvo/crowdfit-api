@@ -57,11 +57,13 @@ INSTALLED_APPS = [
     'phonenumber_field',  # A phonenumber field for models
     # user apps
     'crowdfit_api.user',
+    'api.apps.ApiConfig'
 ]
 
 AUTH_USER_MODEL = 'user.CustomUser'  # Using Custom User Model
 SITE_ID = 1
-
+# use my custom backends to login using email
+AUTHENTICATION_BACKENDS= ['api.backends.EmailBackend']
 # Keep corsheader at the top of the list
 # This is to allow certain IP's to pass CORS Policy and access db
 MIDDLEWARE = [
@@ -152,10 +154,9 @@ AUTH_PASSWORD_VALIDATORS = [
 REST_FRAMEWORK = {
 
     # 'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S (%z)',
-    #
     'UNAUTHENTICATED_USER': None,
     'DEFAULT_PERMISSION_CLASSES': [
-        # 'rest_framework.permissions.IsAuthenticated',
+        #'rest_framework.permissions.IsAuthenticated',
         # 'rest_framework.permissions.IsAuthenticatedOrReadOnly',
         'rest_framework.permissions.AllowAny',
     ],
@@ -169,6 +170,8 @@ REST_FRAMEWORK = {
         # curl -X GET http://127.0.0.1:8000/api/example/ -H 'Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b'
         # Note: If you use TokenAuthentication in production you must ensure that your API is only available over https.
         'rest_framework.authentication.TokenAuthentication',
+        #TODO: make token expire-able
+        # 'module-name.authentication.ExpiringTokenAuthentication',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 30
@@ -180,7 +183,8 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',
 ]
-
+#SID='SK85b7d539a3e20c8dd1767dbe1f61c4e3'
+ACCOUNT_SECURITY_API_KEY='vhsI4eiZgMNopCTjsLPpPXmJIv12VaBV'
 # Internationalization
 # https://docs.djangoproject.com/en/2.1/topics/i18n/
 
