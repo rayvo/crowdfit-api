@@ -25,4 +25,7 @@ ADD:
 -pip install authy
 -pip install Pillow
 
+Create Database: CREATE DATABASE crowdfitdb CHARACTER SET utf8 COLLATE utf8_general_ci;
+Modify setting file to change the password for your root db
+
 -python manage.py migrate
