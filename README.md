@@ -22,7 +22,9 @@ ADD:
 -pip install djangorestframework_simplejwt
 
 #install api for phone verification. https://www.twilio.com/
+
 -pip install authy
+
 -pip install Pillow
 
 Create Database: CREATE DATABASE crowdfitdb CHARACTER SET utf8 COLLATE utf8_general_ci;
