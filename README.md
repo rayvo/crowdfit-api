@@ -29,3 +29,4 @@ Create Database: CREATE DATABASE crowdfitdb CHARACTER SET utf8 COLLATE utf8_gene
 Modify setting file to change the password for your root db
 
 -python manage.py migrate
+python manage.py createsuperuser --email taeyuim@naver.com --username admin
