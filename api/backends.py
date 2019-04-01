@@ -13,7 +13,7 @@ class EmailBackend(ModelBackend):
     def authenticate(self, request, email=None, password=None, **kwargs):
         if email is None:
             return self._authenticate_by_username(password, **kwargs)
-        return self._authenticate_by_email(password, **kwargs)
+        return self._authenticate_by_email(email, password, **kwargs)
 
     def _authenticate_by_email(self, email, password, **kwargs):
         if email:

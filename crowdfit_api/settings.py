@@ -110,11 +110,6 @@ DATABASES = {
         'OPTIONS': {
             'read_default_file': 'crowdfit_api/dbproperties.cnf',
         },
-         'NAME': 'crowdfitdb',
-         'USER': 'root',
-         'PASSWORD': 'duyvolam',
-        # 'HOST': '127.0.0.1',
-        # 'PORT': '3306'
     }
 }
 # for using mysql-connector-python
