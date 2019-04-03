@@ -11,13 +11,13 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 from rest_framework import viewsets
 # my app models
-from crowdfit_api.user.models import Country, City, Address, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, UserStatus, UserHousehold, Department, Role, \
-   DepartmentRole, UserRole, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club
+from crowdfit_api.user.models import Country, City, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, UserHousehold, Department, Role, \
+   DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club
     
 # my app serializers
-from crowdfit_api.user.serializers import UserSerializer, CountrySerializers, CitySerializers, AddressSerializers, \
-    ApartmentSerializers, HouseholdSerializers, ImageFileSerializers, UserAvatarSerializers, StatusSerializers, DocumentFileSerializers, UserStatusSerializers, UserHouseholdSerializers, \
-    DepartmentSerializers, RoleSerializers, DepartmentRoleSerializers, UserRoleSerializers, PermissionSerializers, AppFeatureSerializers, RoleFeaturePermissionSerializers, \
+from crowdfit_api.user.serializers import UserSerializer, CountrySerializers, CitySerializers, \
+    ApartmentSerializers, HouseholdSerializers, ImageFileSerializers, UserAvatarSerializers, StatusSerializers, DocumentFileSerializers, UserHouseholdSerializers, \
+    DepartmentSerializers, RoleSerializers, DepartmentRoleSerializers, UserRoleStatusSerializers, PermissionSerializers, AppFeatureSerializers, RoleFeaturePermissionSerializers, \
     LoginSerializers, UserBodyInfoSerializers, ClubSerializers
     
 
@@ -50,9 +50,9 @@ class CityViewSet(viewsets.ModelViewSet):
     serializer_class = CitySerializers
 
 
-class AddressViewSet(viewsets.ModelViewSet):
-    queryset = Address.objects.all().order_by('-id')
-    serializer_class = AddressSerializers
+# class AddressViewSet(viewsets.ModelViewSet):
+#     queryset = Address.objects.all().order_by('-id')
+#     serializer_class = AddressSerializers
 
 
 class ApartmentViewSet(viewsets.ModelViewSet):
@@ -80,10 +80,6 @@ class DocumentFileViewSet(viewsets.ModelViewSet):
     queryset = DocumentFile.objects.all().order_by('-id')
     serializer_class = DocumentFileSerializers
 
-class UserStatusViewSet(viewsets.ModelViewSet):
-    queryset = UserStatus.objects.all().order_by('-id')
-    serializer_class = UserStatusSerializers
-
 
 class UserHouseholdViewSet(viewsets.ModelViewSet):
     queryset = UserHousehold.objects.all().order_by('-id')
@@ -103,9 +99,9 @@ class DepartmentRoleViewSet(viewsets.ModelViewSet):
     queryset = DepartmentRole.objects.all().order_by('-id')
     serializer_class = DepartmentRoleSerializers
 
-class UserRoleViewSet(viewsets.ModelViewSet):
-    queryset = UserRole.objects.all().order_by('-id')
-    serializer_class = UserRoleSerializers
+class UserRoleStatusViewSet(viewsets.ModelViewSet):
+    queryset = UserRoleStatus.objects.all().order_by('-id')
+    serializer_class = UserRoleStatusSerializers
 
 
 class PermissionViewSet(viewsets.ModelViewSet):

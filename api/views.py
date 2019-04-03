@@ -14,7 +14,7 @@ from rest_framework import serializers
 
 from django.contrib.auth import get_user_model
 
-from crowdfit_api.user.models import UserStatus, Status, UserRole, DocumentFile
+from crowdfit_api.user.models import  Status, UserRoleStatus, DocumentFile
 
 CustomUser = get_user_model()
 
@@ -59,7 +59,7 @@ class CrowdfitObtainAuthToken(APIView):
         user = serializer.validated_data['user']
         token, created = Token.objects.get_or_create(user=user)
         # 2. get status of user
-        user_status = UserStatus.objects.get(user_id=user.id)
+        user_status_role = UserStatusRole.objects.get(user_id=user.id)
         # 3. get list of role of user
         list_user_role = UserRole.objects.filter(user_id=user.id, is_active=True)
         pickup_records = []
@@ -69,7 +69,7 @@ class CrowdfitObtainAuthToken(APIView):
         return Response({'token': token.key,
                          'user_id': user.id,
                          'fullname': user.fullname,
-                         'status': user_status.status_id,
+                         'status_role': user_status_role.status_id,
                          'roles': pickup_records
                          })
         # if serializer.errors is None:
@@ -174,7 +174,7 @@ class CrowdfitRegisterView(GenericAPIView):
             # 1. get status
             status_init = Status.objects.get(id=init_status_id)
             # 2. update user status
-            UserStatus.objects.create(user=user, status=status_init)
+            UserStatusRole.objects.create(user=user, status=status_init)
             # return success
             # retdict = OrderedDict(serializer.data)
             # retdict['status'] = init_status_id

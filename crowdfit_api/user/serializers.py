@@ -10,8 +10,8 @@ User = get_user_model()
 
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from crowdfit_api.user.models import Country, City, Address, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, UserStatus, UserHousehold, Department, Role, \
-   DepartmentRole, UserRole, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club
+from crowdfit_api.user.models import Country, City, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, UserHousehold, Department, Role, \
+   DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club
   
 
 # TODO: make sure the full info serializer actually has all of the information
@@ -82,28 +82,6 @@ class CountrySerializers(serializers.ModelSerializer):
         fields = ('id', 'country', 'create_date', 'last_update', 'cities')
 
 
-# Address (
-# 	id INT AUTO_INCREMENT PRIMARY KEY,
-#   city_id VARCHAR(50) NOT NULL,  CITY ID
-# 	address_gu VARCHAR(50) NOT NULL,
-# 	address_dong VARCHAR(50) NOT NULL,
-# 	address_detail VARCHAR(100) NOT NULL,
-#   postcode VARCHAR(10) NOT NULL,
-#   phone VARCHAR(15), 
-#   latitude DECIMAL(10,8),
-#   longtitude DECIMAL(11,8),
-#   create_date DATETIME, 
-#   last_update DATETIME
-# );
-class AddressSerializers(serializers.ModelSerializer):
-    cities = CitySerializers(many=True, read_only=True)
-
-    class Meta:
-        model = Address
-        fields = ('id', 'address_gu', 'address_dong', 'address_detail', 'postcode', 'phone', 'latitude', 'longtitude', 'city', 'cities')
-        extra_kwargs = {'last_update': {'read_only': True}}
-
-
 # Apartment(
 # 	id INT AUTO_INCREMENT PRIMARY KEY,
 # 	name VARCHAR(125) NOT NULL UNIQUE, 
@@ -114,11 +92,11 @@ class AddressSerializers(serializers.ModelSerializer):
 # 	last_update DATETIME
 # );
 class ApartmentSerializers(serializers.ModelSerializer):
-    addresses = AddressSerializers(many=True, read_only=True)
+    cities = CitySerializers(many=True, read_only=True)
 
     class Meta:
         model = Apartment
-        fields = ('id', 'name', 'description', 'address', 'addresses', 'is_active', 'create_date', 'last_update')
+        fields = ('id', 'name', 'address_gu', 'address_dong', 'address_road', 'address_detail', 'postcode', 'phone', 'latitude', 'longtitude',  'city', 'cities', 'description','is_active', 'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
 
@@ -222,17 +200,17 @@ class DocumentFileSerializers(serializers.ModelSerializer):
 #     create_date DATETIME,
 #     last_update DATETIME
 # )
-class UserStatusSerializers(serializers.ModelSerializer):
-    users = UserSerializer(many=True, read_only=True)
-    staffs = UserSerializer(many=True, read_only=True)
-    status_list = StatusSerializers(many=True, read_only=True)
-    document_files = DocumentFileSerializers(many=True, read_only=True)
-    class Meta:
-        model = UserStatus
-        fields = (
-            'id', 'status', 'document_file', 'user', 'staff', 'users', 'staffs', 'status_list', 'document_files', 'create_date', 'last_update')
-        extra_kwargs = {'last_update': {'read_only': True},
-                        'create_date': {'read_only': True}}
+# class UserStatusSerializers(serializers.ModelSerializer):
+#     users = UserSerializer(many=True, read_only=True)
+#     staffs = UserSerializer(many=True, read_only=True)
+#     status_list = StatusSerializers(many=True, read_only=True)
+#     document_files = DocumentFileSerializers(many=True, read_only=True)
+#     class Meta:
+#         model = UserStatus
+#         fields = (
+#             'id', 'status', 'document_file', 'user', 'staff', 'users', 'staffs', 'status_list', 'document_files', 'create_date', 'last_update')
+#         extra_kwargs = {'last_update': {'read_only': True},
+#                         'create_date': {'read_only': True}}
 
 
 # UserHousehold (
@@ -323,15 +301,17 @@ class DepartmentRoleSerializers(serializers.ModelSerializer):
 #     create_date DATETIME,
 #     last_update DATETIME
 # )
-class UserRoleSerializers(serializers.ModelSerializer):
+class UserRoleStatusSerializers(serializers.ModelSerializer):
     user_userrole_list = UserSerializer(many=True, read_only=True)
     deprole_userrole_list = DepartmentRoleSerializers(many=True, read_only=True)
-
+    staffs = UserSerializer(many=True, read_only=True)
+    status_list = StatusSerializers(many=True, read_only=True)
+    document_files = DocumentFileSerializers(many=True, read_only=True)
     class Meta:
-        model = UserRole
+        model = UserRoleStatus
         fields = (
             'id', 'user', 'user_userrole_list',
-            'department_role', 'deprole_userrole_list',
+            'department_role', 'deprole_userrole_list', 'status', 'document_file', 'staff', 'staffs',  'status_list', 'document_files',
             'is_active',
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
@@ -450,12 +430,11 @@ class UserBodyInfoSerializers(serializers.ModelSerializer):
 # );
 class ClubSerializers(serializers.ModelSerializer):
     apartment_club_list = ApartmentSerializers(many=True, read_only=True)
-    address_club_list = AddressSerializers(many=True, read_only=True)
 
     class Meta:
         model = Club
         fields = (
-            'id', 'apartment', 'name', 'address', 'phone', 'club_register_number', 'club_register_date', 'ot_number', 'ot_period', 'description',
+            'id', 'apartment', 'name', 'phone', 'club_register_number', 'club_register_date', 'ot_number', 'ot_period', 'description',
             'apartment_club_list', 'address_club_list',
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},

@@ -17,7 +17,7 @@ from django.core.validators import validate_email
 
 # My Models
 
-# User(
+# User( 
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     fullname VARCHAR(50) NOT NULL,
 #     email VARCHAR(50) NOT NULL UNIQUE,
@@ -119,22 +119,22 @@ class City(models.Model):
 #   last_update DATETIME
 # );
 
-class Address(models.Model):
-    # auto name: city_id
-    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='cities')
-    address_gu = models.CharField(max_length=50, null=False)
-    address_dong = models.CharField(max_length=50, null=False)
-    address_detail = models.CharField(max_length=100, null=False)
-    postcode = models.CharField(max_length=10, null=False)
-    phone = models.CharField(max_length=15)
-    latitude = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=True)
-    longtitude = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=True)
-    #
-    create_date = models.DateTimeField(auto_now_add=True)
-    last_update = models.DateTimeField(auto_now=True)
+# class Address(models.Model):
+#     # auto name: city_id
+#     city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='cities')
+#     address_gu = models.CharField(max_length=50, null=False)
+#     address_dong = models.CharField(max_length=50, null=False)
+#     address_detail = models.CharField(max_length=100, null=False)
+#     postcode = models.CharField(max_length=10, null=False)
+#     phone = models.CharField(max_length=15)
+#     latitude = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=True)
+#     longtitude = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=True)
+#     #
+#     create_date = models.DateTimeField(auto_now_add=True)
+#     last_update = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return self.address_detail
+#     def __str__(self):
+#         return self.address_detail
 
 
 # Apartment(
@@ -152,8 +152,15 @@ class Apartment(models.Model):
     # id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50, null=False, unique=True)
     # foreign key, auto generate db column: address_id
-    address = models.ForeignKey(Address, on_delete=models.CASCADE, related_name='addresses')
-
+    city = models.ForeignKey(City, on_delete=models.CASCADE, related_name='cities')
+    address_gu = models.CharField(max_length=50, null=False)
+    address_dong = models.CharField(max_length=50, null=False)
+    address_road = models.CharField(max_length=250, null=False)
+    address_detail = models.CharField(max_length=100, null=False)
+    postcode = models.CharField(max_length=10, null=False)
+    phone = models.CharField(max_length=15)
+    latitude = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=True)
+    longtitude = models.DecimalField(max_digits=11, decimal_places=8, default=0, null=True)
     description = models.CharField(max_length=500, null=True)
     is_active = models.BooleanField(default=True)
     #
@@ -301,20 +308,20 @@ class DocumentFile(models.Model):
 #     create_date DATETIME,
 #     last_update DATETIME
 # )
-class UserStatus(models.Model):
-    # ID is by default
-    # id = models.AutoField(primary_key=True)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='users')
-    staff = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='staffs', null=True)
-    status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list')
-    #
-    document_file = models.ForeignKey(DocumentFile, on_delete=models.CASCADE, related_name='document_files')
-    #
-    create_date = models.DateTimeField(auto_now_add=True)
-    last_update = models.DateTimeField(auto_now=True)
+# class UserStatus(models.Model):
+#     # ID is by default
+#     # id = models.AutoField(primary_key=True)
+#     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='users')
+#     staff = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='staffs', null=True)
+#     status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list')
+#     #
+#     document_file = models.ForeignKey(DocumentFile, on_delete=models.CASCADE, related_name='document_files')
+#     #
+#     create_date = models.DateTimeField(auto_now_add=True)
+#     last_update = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return self.id
+#     def __str__(self):
+#         return self.id
 
 
 # UserHousehold (
@@ -412,11 +419,17 @@ class DepartmentRole(models.Model):
 #     create_date DATETIME,
 #     last_update DATETIME
 # )
-class UserRole(models.Model):
+class UserRoleStatus(models.Model):
     # ID is by default
     # id = models.AutoField(primary_key=True)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_userrole_list')
     department_role = models.ForeignKey(DepartmentRole, on_delete=models.CASCADE, related_name='deprole_userrole_list')
+    staff = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='staffs', null=True)
+    status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list')
+    #
+    document_file = models.ForeignKey(DocumentFile, on_delete=models.CASCADE, related_name='document_files')
+   
+    
     is_active = models.BooleanField(default=False)
     #
     create_date = models.DateTimeField(auto_now_add=True)
@@ -556,7 +569,6 @@ class Club(models.Model):
     # id = models.AutoField(primary_key=True)
     apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name='apartment_club_list')
     name = models.CharField(max_length=125, null=False, unique=True)
-    address = models.ForeignKey(Address, on_delete=models.CASCADE, related_name='address_club_list')
     phone = models.CharField(max_length=11)
     club_register_number = models.CharField(max_length=10)
     club_register_date = models.DateTimeField(null=False, blank=False)
