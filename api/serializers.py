@@ -120,8 +120,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True, 'required': True}}
 
 
-class UpdateUserAptSerializer(serializers.ModelSerializer):
-    user_ua_list = UserSerializer(many=True, read_only=True)
+class UploadUserDocumentFileSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+    doc_file = serializers.FileField(allow_null=False, use_url=True)
     class Meta:
-        model = UserAvatar
-        fields = ('url_image', 'user', 'user_ua_list')
+        fields = ('user_id', 'doc_file')
+    def create(self, validated_data):
+        #do something here
+        pass
+

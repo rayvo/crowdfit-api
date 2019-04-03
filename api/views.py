@@ -1,15 +1,12 @@
-from collections import OrderedDict
-
 from rest_framework import parsers, renderers, status
 from rest_framework.authtoken.models import Token
 from rest_framework.compat import coreapi, coreschema
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
-from rest_framework.schemas import ManualSchema, DefaultSchema
-from rest_framework.utils.serializer_helpers import ReturnDict
+from rest_framework.schemas import ManualSchema
 from rest_framework.views import APIView
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
-    UpdateUserAptSerializer
+    UploadUserDocumentFileSerializer
 
 from authy.api import AuthyApiClient
 from django.conf import settings
@@ -17,7 +14,7 @@ from rest_framework import serializers
 
 from django.contrib.auth import get_user_model
 
-from crowdfit_api.user.models import UserStatus, Status, UserAvatar
+from crowdfit_api.user.models import UserStatus, Status, UserRole, DocumentFile
 
 CustomUser = get_user_model()
 
@@ -61,7 +58,20 @@ class CrowdfitObtainAuthToken(APIView):
         # if validate fail, exception will raise, below code is not reached
         user = serializer.validated_data['user']
         token, created = Token.objects.get_or_create(user=user)
-        return Response({'token': token.key, 'user_id': user.id})
+        # 2. get status of user
+        user_status = UserStatus.objects.get(user_id=user.id)
+        # 3. get list of role of user
+        list_user_role = UserRole.objects.filter(user_id=user.id, is_active=True)
+        pickup_records = []
+        for tmp_user_role in list_user_role:
+            pickup_records.append({'department_id': tmp_user_role.department_role.department_id,
+                                   'role_id': tmp_user_role.department_role.role_id})
+        return Response({'token': token.key,
+                         'user_id': user.id,
+                         'fullname': user.fullname,
+                         'status': user_status.status_id,
+                         'roles': pickup_records
+                         })
         # if serializer.errors is None:
         #     user = serializer.validated_data['user']
         #     token, created = Token.objects.get_or_create(user=user)
@@ -171,22 +181,26 @@ class CrowdfitRegisterView(GenericAPIView):
             return Response(data={'id': user.id, 'status': init_status_id}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class UpdateUserAptView(GenericAPIView):
+
+class UploadUserDocumentFileView(GenericAPIView):
     throttle_classes = ()
     permission_classes = ()
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
     #
-    serializer_class = UpdateUserAptSerializer
-    queryset = UserAvatar.objects.all().order_by('-id')
+    serializer_class = UploadUserDocumentFileSerializer
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        # if validate fail, exception will raise, below code is not reached
-        # user = serializer.validated_data['user']
-        # user = serializer.create(serializer.validated_data)
-        user_avatar = serializer.save()
-        if user_avatar:
-            return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+        # 1. save file to table documentfile
+        doc_file = DocumentFile()
+
+        doc_file.file_url = serializer.validated_data['doc_file']
+        doc_file.file_name = doc_file.file_url.name
+        doc_file.file_size = doc_file.file_url.size
+        doc_file.file_type = doc_file.file_url.file.content_type;
+        doc_file.save()
+        if doc_file:
+            return Response(data={'id': doc_file.id}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
