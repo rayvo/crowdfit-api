@@ -195,7 +195,8 @@ USE_L10N = True
 
 USE_TZ = True
 TIME_ZONE = 'Asia/Seoul'
-
+# default user-role-status for user
+CROWDFIT_API_USER_ROLE_STATUS_MEMBER = 1
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.1/howto/static-files/

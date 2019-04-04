@@ -250,7 +250,7 @@ class UserAvatar(models.Model):
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
 
 # Status( //Applying, Waiting, approval, eviction
@@ -278,6 +278,7 @@ class Status(models.Model):
 #     file_url VARCHAR(1024) NOT NULL,
 #     file_type VARCHAR(25),
 #     file_size INT,
+#     user_id INT,
 #     is_active BOOLEAN
 #     create_date DATETIME,
 #     last_update DATETIME
@@ -292,12 +293,13 @@ class DocumentFile(models.Model):
     file_type = models.CharField(max_length=25, null=True, blank=True)
     file_size = models.IntegerField()
     is_active = models.BooleanField(default=True)
+    user_id = models.IntegerField(null=False)
     #
     create_date = models.DateTimeField(auto_now_add=True)
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return str(self.id)
+        return self.file_name
 
 # UserStatus (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -345,7 +347,7 @@ class UserHousehold(models.Model):
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
 # Department ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -408,7 +410,7 @@ class DepartmentRole(models.Model):
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.id
+        return str(self.role.role)
 
 
 # UserRole ( //assign role to each member in one department
@@ -425,7 +427,7 @@ class UserRoleStatus(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_userrole_list')
     department_role = models.ForeignKey(DepartmentRole, on_delete=models.CASCADE, related_name='deprole_userrole_list')
     staff = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='staffs', null=True)
-    status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list')
+    status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list', null=True)
     #
     document_file = models.ForeignKey(DocumentFile, on_delete=models.CASCADE, related_name='document_files')
    
@@ -436,7 +438,7 @@ class UserRoleStatus(models.Model):
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
 # Permission ( // View list, Read permission, Write permission, Write comment, Force delete, Hide post
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -500,7 +502,7 @@ class RoleFeaturePermission(models.Model):
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
 # Login (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -523,7 +525,7 @@ class Login(models.Model):
     #last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
 
 # UserBodyInfo (
@@ -547,7 +549,7 @@ class UserBodyInfo(models.Model):
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
 
 # Club (

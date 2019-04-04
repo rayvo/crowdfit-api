@@ -2,7 +2,7 @@
 @author: moon
 @date: 2019.02.27
 """
-
+from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth import get_user_model
 
 # for custom user
@@ -10,9 +10,10 @@ User = get_user_model()
 
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
-from crowdfit_api.user.models import Country, City, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, UserHousehold, Department, Role, \
-   DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club
-  
+from crowdfit_api.user.models import Country, City, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, \
+    UserHousehold, Department, Role, \
+    DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club
+
 
 # TODO: make sure the full info serializer actually has all of the information
 
@@ -96,7 +97,10 @@ class ApartmentSerializers(serializers.ModelSerializer):
 
     class Meta:
         model = Apartment
-        fields = ('id', 'name', 'address_gu', 'address_dong', 'address_road', 'address_detail', 'postcode', 'phone', 'latitude', 'longtitude',  'city', 'cities', 'description','is_active', 'create_date', 'last_update')
+        fields = (
+            'id', 'name', 'address_gu', 'address_dong', 'address_road', 'address_detail', 'postcode', 'phone',
+            'latitude', 'longtitude', 'city', 'cities', 'description', 'is_active',
+            'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
 
@@ -115,10 +119,10 @@ class HouseholdSerializers(serializers.ModelSerializer):
 
     class Meta:
         model = Household
-        fields = ('id', 'address_dong', 'house_number', 'is_empty', 'apartment', 'apartments', 'create_date', 'last_update')
+        fields = (
+            'id', 'address_dong', 'house_number', 'is_empty', 'apartment', 'apartments', 'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
-
 
 
 # ImageFile (
@@ -149,6 +153,7 @@ class ImageFileSerializers(serializers.ModelSerializer):
 class UserAvatarSerializers(serializers.ModelSerializer):
     user_ua_list = UserSerializer(many=True, read_only=True)
     image_file_list = ImageFileSerializers(many=True, read_only=True)
+
     class Meta:
         model = UserAvatar
         fields = (
@@ -157,6 +162,7 @@ class UserAvatarSerializers(serializers.ModelSerializer):
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
+
 
 # Status( //Applying, Waiting, approval, eviction
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -174,12 +180,14 @@ class StatusSerializers(serializers.ModelSerializer):
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
 
+
 # DocumentFile (
 # 	id INT AUTO_INCREMENT PRIMARY KEY,
 # 	file_name VARCHAR(250),
 #     file_url VARCHAR(1024) NOT NULL,
 #     file_type VARCHAR(25),
 #     file_size INT,
+#     user_id INT,
 #     is_active BOOLEAN
 #     create_date DATETIME,
 #     last_update DATETIME
@@ -187,9 +195,11 @@ class StatusSerializers(serializers.ModelSerializer):
 class DocumentFileSerializers(serializers.ModelSerializer):
     class Meta:
         model = DocumentFile
-        fields = ('id', 'file_name', 'file_url', 'file_type', 'file_size', 'is_active','create_date', 'last_update')
+        fields = ('id', 'file_name', 'file_url', 'file_type', 'file_size', 'is_active', 'user_id',
+                  'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
+
 
 # UserStatus (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -228,9 +238,11 @@ class UserHouseholdSerializers(serializers.ModelSerializer):
 
     class Meta:
         model = UserHousehold
-        fields = ('id', 'user', 'household', 'is_owner', 'user_list', 'households', 'is_active', 'create_date', 'last_update')
+        fields = (
+            'id', 'user', 'household', 'is_owner', 'user_list', 'households', 'is_active', 'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
+
 
 # Department ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -247,10 +259,17 @@ class DepartmentSerializers(serializers.ModelSerializer):
         model = Department
         fields = (
             'id', 'name',
-            'apartment', 'apartment_dep_list', 'description', 
-                   'create_date', 'last_update')
+            'apartment', 'apartment_dep_list', 'description',
+            'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=model.objects.all(),
+                fields=('name', 'apartment'),
+                message=_("department with this name already exists..")
+            )
+        ]
 
 
 # Role ( //비회원, 직원, 입주민, 관리자 Non-member, residents, lecturer, representative, IT dev, manager, ...
@@ -293,6 +312,7 @@ class DepartmentRoleSerializers(serializers.ModelSerializer):
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
 
+
 # UserRole ( //assign role to each member in one department
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     user_id INT,	→ USER ID
@@ -307,15 +327,22 @@ class UserRoleStatusSerializers(serializers.ModelSerializer):
     staffs = UserSerializer(many=True, read_only=True)
     status_list = StatusSerializers(many=True, read_only=True)
     document_files = DocumentFileSerializers(many=True, read_only=True)
+
     class Meta:
         model = UserRoleStatus
         fields = (
-            'id', 'user', 'user_userrole_list',
-            'department_role', 'deprole_userrole_list', 'status', 'document_file', 'staff', 'staffs',  'status_list', 'document_files',
+            'id',
+            'user', 'user_userrole_list',
+            'department_role', 'deprole_userrole_list',
+            'status', 'status_list',
+            'document_file', 'document_files',
+            'staff_id', 'staffs',
             'is_active',
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
-                        'create_date': {'read_only': True}}
+                        'create_date': {'read_only': True}
+                        }
+
 
 # Permission ( // View list, Read permission, Write permission, Write comment, Force delete, Hide post
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -347,6 +374,7 @@ class AppFeatureSerializers(serializers.ModelSerializer):
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
 
+
 # RoleFeaturePermission (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     department_role_id INT NOT NULL, → DepartmentRole ID
@@ -371,7 +399,8 @@ class RoleFeaturePermissionSerializers(serializers.ModelSerializer):
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
-                        
+
+
 # Login (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     user_id INT,
@@ -388,7 +417,7 @@ class LoginSerializers(serializers.ModelSerializer):
         model = Login
         fields = (
             'id', 'user', 'login_time', 'logout_time', 'last_app_feature', 'is_last',
-            'user_login_list', 'app_feature_login_list')
+            'user_login_listuser_login_list', 'app_feature_login_list')
         extra_kwargs = {'login_time': {'read_only': True}}
 
 
@@ -434,25 +463,9 @@ class ClubSerializers(serializers.ModelSerializer):
     class Meta:
         model = Club
         fields = (
-            'id', 'apartment', 'name', 'phone', 'club_register_number', 'club_register_date', 'ot_number', 'ot_period', 'description',
+            'id', 'apartment', 'name', 'phone', 'club_register_number', 'club_register_date', 'ot_number', 'ot_period',
+            'description',
             'apartment_club_list', 'address_club_list',
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

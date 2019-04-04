@@ -1,12 +1,18 @@
+""""
+@author: moon
+@date: 2019.02.27
+"""
 from rest_framework import parsers, renderers, status
 from rest_framework.authtoken.models import Token
 from rest_framework.compat import coreapi, coreschema
 from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.schemas import ManualSchema
-from rest_framework.views import APIView
+from django.conf import settings
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
-    UploadUserDocumentFileSerializer
+    UploadUserDocumentFileSerializer, RequestUserRoleStatusSerializer, DeleteUserDocumentFileSerializer, \
+    UpdateUserDocumentFileSerializer
 
 from authy.api import AuthyApiClient
 from django.conf import settings
@@ -14,70 +20,12 @@ from rest_framework import serializers
 
 from django.contrib.auth import get_user_model
 
-from crowdfit_api.user.models import  Status, UserRoleStatus, DocumentFile
+from crowdfit_api.user.models import DocumentFile, UserRoleStatus
+from crowdfit_api.user.serializers import UserRoleStatusSerializers
 
 CustomUser = get_user_model()
 
 authy_api = AuthyApiClient(settings.ACCOUNT_SECURITY_API_KEY)
-
-
-class CrowdfitObtainAuthToken(APIView):
-    throttle_classes = ()
-    permission_classes = ()
-    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
-    renderer_classes = (renderers.JSONRenderer,)
-    serializer_class = CrowdfitAuthTokenSerializer
-    if coreapi is not None and coreschema is not None:
-        schema = ManualSchema(
-            fields=[
-                coreapi.Field(
-                    name="email",
-                    required=True,
-                    location='form',
-                    schema=coreschema.String(
-                        title="Email",
-                        description="Valid email for authentication",
-                    ),
-                ),
-                coreapi.Field(
-                    name="password",
-                    required=True,
-                    location='form',
-                    schema=coreschema.String(
-                        title="Password",
-                        description="Valid password for authentication",
-                    ),
-                ),
-            ],
-            encoding="application/json",
-        )
-
-    def post(self, request):
-        serializer = self.serializer_class(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        # if validate fail, exception will raise, below code is not reached
-        user = serializer.validated_data['user']
-        token, created = Token.objects.get_or_create(user=user)
-        # 2. get status of user
-        user_status_role = UserStatusRole.objects.get(user_id=user.id)
-        # 3. get list of role of user
-        list_user_role = UserRole.objects.filter(user_id=user.id, is_active=True)
-        pickup_records = []
-        for tmp_user_role in list_user_role:
-            pickup_records.append({'department_id': tmp_user_role.department_role.department_id,
-                                   'role_id': tmp_user_role.department_role.role_id})
-        return Response({'token': token.key,
-                         'user_id': user.id,
-                         'fullname': user.fullname,
-                         'status_role': user_status_role.status_id,
-                         'roles': pickup_records
-                         })
-        # if serializer.errors is None:
-        #     user = serializer.validated_data['user']
-        #     token, created = Token.objects.get_or_create(user=user)
-        #     #quser = Token.objects.get(key=token)
-        #     return Response({'token': token.key, 'user_id': user.id})
-        # return Response({'token': '', 'user_id': 0})
 
 
 class PhoneVerificationView(GenericAPIView):
@@ -152,6 +100,61 @@ class TokenVerificationView(GenericAPIView):
         return Response({'is_verified': phone.content})
 
 
+class CrowdfitObtainAuthToken(GenericAPIView):
+    throttle_classes = ()
+    permission_classes = ()
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = CrowdfitAuthTokenSerializer
+    if coreapi is not None and coreschema is not None:
+        schema = ManualSchema(
+            fields=[
+                coreapi.Field(
+                    name="email",
+                    required=True,
+                    location='form',
+                    schema=coreschema.String(
+                        title="Email",
+                        description="Valid email for authentication",
+                    ),
+                ),
+                coreapi.Field(
+                    name="password",
+                    required=True,
+                    location='form',
+                    schema=coreschema.String(
+                        title="Password",
+                        description="Valid password for authentication",
+                    ),
+                ),
+            ],
+            encoding="application/json",
+        )
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        user = serializer.validated_data['user']
+        token, created = Token.objects.get_or_create(user=user)
+        # 2. get status of user
+        # user_status = UserStatus.objects.get(user_id=user.id)
+        # 3. get list of role of user
+        list_user_role = UserRoleStatus.objects.filter(user_id=user.id, is_active=True)
+        pickup_records = []
+        for tmp_user_role in list_user_role:
+            pickup_records.append({'department_id': tmp_user_role.department_role.department_id,
+                                   'role_id': tmp_user_role.department_role.role_id
+                                   })
+        # 4. get 'last_app_feature_id': 0 # 0: mean there's no last action
+        return Response({'token': token.key,
+                         'user_id': user.id,
+                         'fullname': user.fullname,
+                         'roles': pickup_records,
+                         'last_app_features': []
+                         })
+
+
 class CrowdfitRegisterView(GenericAPIView):
     throttle_classes = ()
     permission_classes = ()
@@ -161,8 +164,6 @@ class CrowdfitRegisterView(GenericAPIView):
     queryset = CustomUser.objects.all().order_by('-id')
 
     def post(self, request):
-        init_status_id = 1
-        #
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         # if validate fail, exception will raise, below code is not reached
@@ -170,15 +171,17 @@ class CrowdfitRegisterView(GenericAPIView):
         # user = serializer.create(serializer.validated_data)
         user = serializer.save()
         if user:
-            # create user_status
-            # 1. get status
-            status_init = Status.objects.get(id=init_status_id)
-            # 2. update user status
-            UserStatusRole.objects.create(user=user, status=status_init)
-            # return success
-            # retdict = OrderedDict(serializer.data)
-            # retdict['status'] = init_status_id
-            return Response(data={'id': user.id, 'status': init_status_id}, status=status.HTTP_201_CREATED)
+            # return data as login data
+            # 1. generate token
+            token, created = Token.objects.get_or_create(user=user)
+            # 3. get list of role of user, already registered user has no role
+            pickup_records = []
+            return Response({'token': token.key,
+                             'user_id': user.id,
+                             'fullname': user.fullname,
+                             'userrolestatus': pickup_records,
+                             'last_app_features': []
+                             })
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -203,4 +206,101 @@ class UploadUserDocumentFileView(GenericAPIView):
         doc_file.save()
         if doc_file:
             return Response(data={'id': doc_file.id}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RequestUserRoleStatusView(GenericAPIView):
+    serializer_class = RequestUserRoleStatusSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # save data
+        user_role_status = UserRoleStatus(serializer.validated_data)
+        user_role_status.save()
+        return Response(data={'id': user_role_status.id}, status=status.HTTP_201_CREATED)
+
+
+class DeleteUserDocumentFileView(GenericAPIView):
+    throttle_classes = ()
+    permission_classes = ()
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    #
+    serializer_class = DeleteUserDocumentFileSerializer
+
+    def post(self, request):
+        pass
+
+    def delete(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # 1. save file to table documentfile
+        del_id = serializer.validated_data['doc_file_id']
+        doc_file = DocumentFile.objects.get(id=del_id)
+        if not doc_file is None:
+            doc_file.delete()
+            return Response(data={'id': del_id}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_204_NO_CONTENT)
+
+
+class UpdateUserDocumentFileView(GenericAPIView):
+    throttle_classes = ()
+    permission_classes = ()
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    #
+    serializer_class = UpdateUserDocumentFileSerializer
+
+    def post(self, request):
+        pass
+
+    def put(self, request):
+        uid = request.user.id
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # 1. save file to table documentfile
+        update_doc_file_id = serializer.validated_data['doc_file_id']
+        new_doc_file = serializer.validated_data['doc_file']
+        current_doc_file = DocumentFile.objects.get(id=update_doc_file_id)
+        if current_doc_file:
+            current_doc_file.file_url = new_doc_file
+            current_doc_file.file_name = current_doc_file.file_url.name
+            current_doc_file.file_size = current_doc_file.file_url.size
+            current_doc_file.file_type = current_doc_file.file_url.file.content_type;
+            current_doc_file.save()
+            data = {
+                'user_id': uid,
+                'id': current_doc_file.id,
+                'url': current_doc_file.file_url.url
+            }
+            return Response(data=data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_204_NO_CONTENT)
+
+
+class RequestUserRoleStatusView(GenericAPIView):
+    throttle_classes = ()
+    permission_classes = ()
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    #
+    serializer_class = RequestUserRoleStatusSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # 1. save file to table
+        # instance = UserRoleStatus(serializer.validated_data)
+        # instance = serializer.create(serializer.validated_data)
+        # instance = serializer.save()
+        instance = UserRoleStatus()
+        instance.user_id = serializer.validated_data['user_id']
+        instance.department_role_id = serializer.validated_data['department_role_id']
+        instance.document_file_id = serializer.validated_data['document_file_id']
+        instance.status_id = settings.CROWDFIT_API_USER_ROLE_STATUS_MEMBER
+        instance.is_active = False
+        if instance:
+            instance.save()
+            return Response(data={'id': instance.id, 'is_active': instance.is_active, 'status': instance.status_id},
+                            status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
