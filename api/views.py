@@ -2,26 +2,22 @@
 @author: moon
 @date: 2019.02.27
 """
+from authy.api import AuthyApiClient
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework import parsers, renderers, status
+from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.compat import coreapi, coreschema
 from rest_framework.generics import GenericAPIView
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.schemas import ManualSchema
-from django.conf import settings
+from rest_framework.views import APIView
+
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
     UploadUserDocumentFileSerializer, RequestUserRoleStatusSerializer, DeleteUserDocumentFileSerializer, \
     UpdateUserDocumentFileSerializer
-
-from authy.api import AuthyApiClient
-from django.conf import settings
-from rest_framework import serializers
-
-from django.contrib.auth import get_user_model
-
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus
-from crowdfit_api.user.serializers import UserRoleStatusSerializers
 
 CustomUser = get_user_model()
 
@@ -142,17 +138,28 @@ class CrowdfitObtainAuthToken(GenericAPIView):
         # 3. get list of role of user
         list_user_role = UserRoleStatus.objects.filter(user_id=user.id, is_active=True)
         pickup_records = []
+        apartment_id = None
+        apartment_name = None
+        first_loop = True
         for tmp_user_role in list_user_role:
             pickup_records.append({'department_id': tmp_user_role.department_role.department_id,
                                    'role_id': tmp_user_role.department_role.role_id
                                    })
+            if first_loop:
+                first_loop = False
+                apartment_id = tmp_user_role.department_role.department.apartment_id
+                apartment_name = tmp_user_role.department_role.department.apartment.name
+                # get apt-id from role
+
         # 4. get 'last_app_feature_id': 0 # 0: mean there's no last action
         return Response({'token': token.key,
                          'user_id': user.id,
                          'fullname': user.fullname,
                          'roles': pickup_records,
-                         'last_app_features': []
-                         })
+                         'last_app_features': [],
+                         'apartment_id': apartment_id,
+                         'apartment_name': apartment_name
+                         }, status=status.HTTP_200_OK)
 
 
 class CrowdfitRegisterView(GenericAPIView):
@@ -180,8 +187,10 @@ class CrowdfitRegisterView(GenericAPIView):
                              'user_id': user.id,
                              'fullname': user.fullname,
                              'userrolestatus': pickup_records,
-                             'last_app_features': []
-                             })
+                             'last_app_features': [],
+                             'apartment_id': None,
+                             'apartment_name': None
+                             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -200,12 +209,19 @@ class UploadUserDocumentFileView(GenericAPIView):
         doc_file = DocumentFile()
 
         doc_file.file_url = serializer.validated_data['doc_file']
+        # TODO: get user_id from token: user_id = request.user.id <-- right code
+        doc_file.user_id = serializer.validated_data['user_id']
         doc_file.file_name = doc_file.file_url.name
         doc_file.file_size = doc_file.file_url.size
         doc_file.file_type = doc_file.file_url.file.content_type;
         doc_file.save()
         if doc_file:
-            return Response(data={'id': doc_file.id}, status=status.HTTP_201_CREATED)
+            data = {
+                'user_id': doc_file.user_id,
+                'id': doc_file.id,
+                'url': doc_file.file_url.url
+            }
+            return Response(data=data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -256,7 +272,7 @@ class UpdateUserDocumentFileView(GenericAPIView):
         pass
 
     def put(self, request):
-        uid = request.user.id
+        # uid = request.user.id
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         # 1. save file to table documentfile
@@ -270,7 +286,7 @@ class UpdateUserDocumentFileView(GenericAPIView):
             current_doc_file.file_type = current_doc_file.file_url.file.content_type;
             current_doc_file.save()
             data = {
-                'user_id': uid,
+                'user_id': current_doc_file.user_id,
                 'id': current_doc_file.id,
                 'url': current_doc_file.file_url.url
             }
