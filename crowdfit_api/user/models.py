@@ -449,7 +449,7 @@ class UserRoleStatus(models.Model):
     status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list',
                                null=True)
     #
-    document_file = models.ForeignKey(DocumentFile, on_delete=models.CASCADE, related_name='document_files')
+    document_file = models.ForeignKey(DocumentFile, on_delete=models.CASCADE, related_name='document_files', null=True)
 
     is_active = models.BooleanField(default=False)
     #
