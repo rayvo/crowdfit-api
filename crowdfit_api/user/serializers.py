@@ -12,7 +12,8 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from crowdfit_api.user.models import Country, City, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, \
     UserHousehold, Department, Role, \
-    DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club
+    DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club, \
+    DepartmentIndex
 
 
 # TODO: make sure the full info serializer actually has all of the information
@@ -244,6 +245,23 @@ class UserHouseholdSerializers(serializers.ModelSerializer):
                         'create_date': {'read_only': True}}
 
 
+# DepartmentIndex ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     name VARCHAR(125) NOT NULL,
+#     description VARCHAR(500),
+#     create_date DATETIME,
+#     last_update DATETIME
+# );
+class DepartmentIndexSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = DepartmentIndex
+        fields = (
+            'id', 'name', 'description',
+            'create_date', 'last_update')
+        extra_kwargs = {'last_update': {'read_only': True},
+                        'create_date': {'read_only': True}}
+
+
 # Department ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     name VARCHAR(125) NOT NULL,
@@ -254,20 +272,22 @@ class UserHouseholdSerializers(serializers.ModelSerializer):
 # );
 class DepartmentSerializers(serializers.ModelSerializer):
     apartment_dep_list = ApartmentSerializers(many=True, read_only=True)
+    depidx_dep_list = DepartmentIndexSerializers(many=True, read_only=True)
 
     class Meta:
         model = Department
         fields = (
-            'id', 'name',
-            'apartment', 'apartment_dep_list', 'description',
+            'id', 'name', 'description',
+            'apartment', 'apartment_dep_list',
+            'department_index', 'depidx_dep_list',
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
         validators = [
             serializers.UniqueTogetherValidator(
                 queryset=model.objects.all(),
-                fields=('name', 'apartment'),
-                message=_("department with this name already exists..")
+                fields=('apartment', 'department_index'),
+                message=_("apartment with this department already exists..")
             )
         ]
 

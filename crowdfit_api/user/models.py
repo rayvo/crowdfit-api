@@ -197,6 +197,7 @@ class Household(models.Model):
     def __str__(self):
         return str(self.id)
 
+
 # ImageFile (
 # 	id INT AUTO_INCREMENT PRIMARY KEY,
 # 	file_name VARCHAR(250) NOTNULL,
@@ -223,6 +224,7 @@ class ImageFile(models.Model):
     def __str__(self):
         return str(self.id)
 
+
 # UserAvatar (
 # 	id INT AUTO_INCREMENT PRIMARY KEY,
 # 	user_id INT,  USER ID
@@ -238,7 +240,7 @@ class UserAvatar(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_ua_list')
     image_file = models.ForeignKey(ImageFile, on_delete=models.CASCADE, related_name='image_file_list')
     is_active = models.BooleanField(default=True)
-    
+
     create_date = models.DateTimeField(auto_now_add=True)
     last_update = models.DateTimeField(auto_now=True)
 
@@ -264,6 +266,7 @@ class Status(models.Model):
 
     def __str__(self):
         return self.name
+
 
 # DocumentFile (
 # 	id INT AUTO_INCREMENT PRIMARY KEY,
@@ -293,6 +296,7 @@ class DocumentFile(models.Model):
 
     def __str__(self):
         return self.file_name
+
 
 # UserStatus (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -342,25 +346,46 @@ class UserHousehold(models.Model):
     def __str__(self):
         return str(self.id)
 
-# Department ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
+
+# DepartmentIndex ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     name VARCHAR(125) NOT NULL,
-#     apartment_id INT, →  APT ID
 #     description VARCHAR(500),
 #     create_date DATETIME,
 #     last_update DATETIME
 # );
-class Department(models.Model):
+class DepartmentIndex(models.Model):
     # ID is by default
     # id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=125, null=False)
-    apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name='apartment_dep_list')
+    name = models.CharField(max_length=125, null=False, unique=True)
     description = models.CharField(max_length=500)
     create_date = models.DateTimeField(auto_now_add=True)
     last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
+
+
+# Department ( //Community,HR, Financial, Accouting, Admistration, IT, Sales, Training
+#     id INT AUTO_INCREMENT PRIMARY KEY,
+#     name VARCHAR(125) NOT NULL,
+#     department_kind_id INT, →  DEP KIND ID
+#     create_date DATETIME,
+#     last_update DATETIME
+# );
+class Department(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=125, null=True)
+    apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name='apartment_dep_list')
+    department_index = models.ForeignKey(DepartmentIndex, on_delete=models.CASCADE, related_name='depidx_dep_list', null=True)
+    description = models.CharField(max_length=500, null=True)
+    #
+    create_date = models.DateTimeField(auto_now_add=True)
+    last_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
 
 
 # Role ( //비회원, 직원, 입주민, 관리자 Non-member, residents, lecturer, representative, IT dev, manager, ...
@@ -383,6 +408,7 @@ class Role(models.Model):
 
     def __str__(self):
         return self.role
+
 
 # DepartmentRole ( //each department has different roles for members
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -420,11 +446,11 @@ class UserRoleStatus(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_userrole_list')
     department_role = models.ForeignKey(DepartmentRole, on_delete=models.CASCADE, related_name='deprole_userrole_list')
     staff = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='staffs', null=True)
-    status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list', null=True)
+    status = models.ForeignKey(Status, db_column='status', on_delete=models.CASCADE, related_name='status_list',
+                               null=True)
     #
     document_file = models.ForeignKey(DocumentFile, on_delete=models.CASCADE, related_name='document_files')
-   
-    
+
     is_active = models.BooleanField(default=False)
     #
     create_date = models.DateTimeField(auto_now_add=True)
@@ -432,6 +458,7 @@ class UserRoleStatus(models.Model):
 
     def __str__(self):
         return str(self.id)
+
 
 # Permission ( // View list, Read permission, Write permission, Write comment, Force delete, Hide post
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -451,6 +478,7 @@ class Permission(models.Model):
 
     def __str__(self):
         return self.name
+
 
 # AppFeature (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -497,6 +525,7 @@ class RoleFeaturePermission(models.Model):
     def __str__(self):
         return str(self.id)
 
+
 # Login (
 #     id INT AUTO_INCREMENT PRIMARY KEY,
 #     user_id INT,
@@ -511,11 +540,13 @@ class Login(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_login_list')
     login_time = models.DateTimeField(null=False, blank=False)
     logout_time = models.DateTimeField(null=True, blank=False)
-    last_app_feature = models.ForeignKey(AppFeature, on_delete=models.CASCADE, related_name='app_feature_login_list', null=True)
+    last_app_feature = models.ForeignKey(AppFeature, on_delete=models.CASCADE, related_name='app_feature_login_list',
+                                         null=True)
     is_last = models.BooleanField(default=False)
+
     #
-    #create_date = models.DateTimeField(auto_now_add=True)
-    #last_update = models.DateTimeField(auto_now=True)
+    # create_date = models.DateTimeField(auto_now_add=True)
+    # last_update = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return str(self.id)
@@ -576,16 +607,3 @@ class Club(models.Model):
 
     def __str__(self):
         return self.name
-
-
-
-
-
-
-
-
-
-
-
-
-
