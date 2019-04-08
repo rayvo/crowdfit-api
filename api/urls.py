@@ -8,7 +8,8 @@ from django.urls import path, include
 from rest_framework import routers
 
 from api.views import CrowdfitObtainAuthToken, CrowdfitRegisterView, UploadUserDocumentFileView, PhoneVerificationView, \
-    TokenVerificationView, DeleteUserDocumentFileView, UpdateUserDocumentFileView, RequestUserRoleStatusView
+    TokenVerificationView, DeleteUserDocumentFileView, UpdateUserDocumentFileView, RequestUserRoleStatusView, \
+    CrowdfitUpdateUserView
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
@@ -28,6 +29,7 @@ urlpatterns = [
     path('delete_doc_file/', DeleteUserDocumentFileView.as_view()),
     path('update_doc_file/', UpdateUserDocumentFileView.as_view()),
     path('request_user_role_status/', RequestUserRoleStatusView.as_view()),
+    path('update_user/', CrowdfitUpdateUserView.as_view()),
     path('', include(router.urls)),
 ]
 if settings.DEBUG:

@@ -4,6 +4,9 @@
 """
 
 import os
+
+from django.core.validators import RegexValidator
+
 import crowdfit_api
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -197,7 +200,12 @@ USE_TZ = True
 TIME_ZONE = 'Asia/Seoul'
 # default user-role-status for user
 CROWDFIT_API_USER_ROLE_STATUS_MEMBER = 1
-
+GENDER_CHOICES = (
+    (1, "Male"),
+    (2, "Female")
+)
+PHONE_REGEX = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$',
+                             message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
 

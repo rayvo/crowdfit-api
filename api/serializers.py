@@ -6,6 +6,7 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 # for lazy text
+from django.core.validators import RegexValidator
 from django.utils.translation import ugettext_lazy as _
 
 from rest_framework import serializers, status
@@ -14,9 +15,7 @@ from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 
 # for custom user
-from crowdfit_api.user.models import UserRoleStatus
-from crowdfit_api.user.serializers import UserSerializer, DepartmentRoleSerializers, StatusSerializers, \
-    DocumentFileSerializers
+from django.conf import settings
 
 CustomUser = get_user_model()
 
@@ -185,3 +184,36 @@ class RequestUserRoleStatusSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+
+class UpdateUserSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+    fullname = serializers.CharField(max_length=150, allow_null=True, required=False)
+    nickname = serializers.CharField(max_length=50, allow_null=True, required=False)
+    # password = models.CharField(max_length=256, null=False, blank=False) # auto generated field
+    birthday = serializers.DateField(allow_null=True, required=False)
+
+    # phone_regex = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$',
+    #                          message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
+    # phone = serializers.CharField(max_length=15, allow_null=True, required=False, validators=[phone_regex])
+    phone = serializers.CharField(max_length=15, allow_null=True, required=False, validators=[settings.PHONE_REGEX])
+
+    gender = serializers.ChoiceField(
+        choices=settings.GENDER_CHOICES
+    )
+    # gender = serializers.IntegerField(allow_null=True, required=False)
+    blood_type = serializers.CharField(max_length=3, allow_null=True, required=False)
+
+    #
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
+
+    class Meta:
+        fields = ('user_id', 'fullname', 'nickname', 'birthday', 'phone', 'gender', 'blood_type')

@@ -6,12 +6,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from datetime import date
 from django.db import models
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import RegexValidator
-from phonenumber_field.modelfields import PhoneNumberField
 from django.core.validators import validate_email
 
 
@@ -41,32 +38,28 @@ class CustomUser(AbstractUser):
                               unique=True, blank=False)
     fullname = models.CharField(max_length=150, null=True, blank=False)
     nickname = models.CharField(max_length=50, null=True, unique=True, blank=False)
+    username = models.CharField(max_length=150, null=True, unique=True, blank=True)
     # password = models.CharField(max_length=256, null=False, blank=False) # auto generated field
     birthday = models.DateField(null=True, blank=False)
 
     # phone_regex = RegexValidator(regex=r'^\+?1?\d{9,15}$', message="Phone number must be entered in the format: '+999 999 999'. Up to 15 digits allowed.")
-    phone_regex = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$',
-                                 message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
-    # phone_number = models.CharField(validators=[phone_regex], max_length=17, default='+82', blank=True) # validators should be a list
-    phone = models.CharField(max_length=15, null=True, validators=[phone_regex])
+    # phone_regex = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$',
+    #                              message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
+    # # phone_number = models.CharField(validators=[phone_regex], max_length=17, default='+82', blank=True) # validators should be a list
+    # phone = models.CharField(max_length=15, null=True, validators=[phone_regex])
+    phone = models.CharField(max_length=15, null=True, validators=[settings.PHONE_REGEX])
 
-    GENDER_CHOICES = (
-        (1, "Male"),
-        (2, "Female")
-    )
-    gender = models.PositiveSmallIntegerField(choices=GENDER_CHOICES, null=True, blank=True)
+    gender = models.PositiveSmallIntegerField(choices=settings.GENDER_CHOICES, null=True, blank=True)
     blood_type = models.CharField(max_length=3, null=True)
     #
     create_date = models.DateTimeField(auto_now_add=True)
     last_update = models.DateTimeField(auto_now=True)
 
-    # profile_photo = models.ImageField(upload_to='./media', blank=True, verbose_name="Profile Picture")
-
     # class Meta:
     #     db_table = 'api_user' # name table
 
     def __str__(self):
-        return self.username
+        return self.email
 
 
 # Country (
@@ -517,8 +510,8 @@ class Login(models.Model):
     # id = models.AutoField(primary_key=True)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_login_list')
     login_time = models.DateTimeField(null=False, blank=False)
-    logout_time = models.DateTimeField(null=False, blank=False)
-    last_app_feature = models.ForeignKey(AppFeature, on_delete=models.CASCADE, related_name='app_feature_login_list')
+    logout_time = models.DateTimeField(null=True, blank=False)
+    last_app_feature = models.ForeignKey(AppFeature, on_delete=models.CASCADE, related_name='app_feature_login_list', null=True)
     is_last = models.BooleanField(default=False)
     #
     #create_date = models.DateTimeField(auto_now_add=True)

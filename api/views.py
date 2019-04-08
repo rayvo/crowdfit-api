@@ -2,6 +2,7 @@
 @author: moon
 @date: 2019.02.27
 """
+
 from authy.api import AuthyApiClient
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -10,14 +11,15 @@ from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.compat import coreapi, coreschema
 from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.schemas import ManualSchema
-from rest_framework.views import APIView
+from django.utils import timezone
 
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
     UploadUserDocumentFileSerializer, RequestUserRoleStatusSerializer, DeleteUserDocumentFileSerializer, \
-    UpdateUserDocumentFileSerializer
-from crowdfit_api.user.models import DocumentFile, UserRoleStatus
+    UpdateUserDocumentFileSerializer, UpdateUserSerializer
+from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login
 
 CustomUser = get_user_model()
 
@@ -133,8 +135,13 @@ class CrowdfitObtainAuthToken(GenericAPIView):
         # if validate fail, exception will raise, below code is not reached
         user = serializer.validated_data['user']
         token, created = Token.objects.get_or_create(user=user)
-        # 2. get status of user
-        # user_status = UserStatus.objects.get(user_id=user.id)
+        # 2. insert log login to table user_login
+        login = Login()
+        login.user = user
+        login.last_app_feature = None
+        login.login_time = timezone.now()
+        login.logout_time = None
+        login.save()
         # 3. get list of role of user
         list_user_role = UserRoleStatus.objects.filter(user_id=user.id, is_active=True)
         pickup_records = []
@@ -151,19 +158,19 @@ class CrowdfitObtainAuthToken(GenericAPIView):
                 apartment_name = tmp_user_role.department_role.department.apartment.name
                 # get apt-id from role
 
-        # 4. get 'last_app_feature_id': 0 # 0: mean there's no last action
+        # 4. get 'last_app_feature_id'
+        last_app_features = []
         return Response({'token': token.key,
                          'user_id': user.id,
                          'fullname': user.fullname,
                          'roles': pickup_records,
-                         'last_app_features': [],
+                         'last_app_features': last_app_features,
                          'apartment_id': apartment_id,
                          'apartment_name': apartment_name
                          }, status=status.HTTP_200_OK)
 
 
 class CrowdfitRegisterView(GenericAPIView):
-    throttle_classes = ()
     permission_classes = ()
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
@@ -181,17 +188,46 @@ class CrowdfitRegisterView(GenericAPIView):
             # return data as login data
             # 1. generate token
             token, created = Token.objects.get_or_create(user=user)
+            # 2. insert log login to table user_login
+            login = Login()
+            login.user = user
+            login.last_app_feature = None
+            login.login_time = timezone.now()
+            login.logout_time = None
+            login.save()
             # 3. get list of role of user, already registered user has no role
-            pickup_records = []
+            user_roles = []
+            # 4. get 'last_app_feature_id'
+            last_app_features = []
             return Response({'token': token.key,
                              'user_id': user.id,
                              'fullname': user.fullname,
-                             'userrolestatus': pickup_records,
-                             'last_app_features': [],
+                             'userrolestatus': user_roles,
+                             'last_app_features': last_app_features,
                              'apartment_id': None,
                              'apartment_name': None
                              }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CrowdfitUpdateUserView(GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = UpdateUserSerializer
+    queryset = CustomUser.objects.all().order_by('-id')
+
+    def put(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # 1. update
+        # user_id = serializer.validated_data['user_id']
+        user_id = request.user.id
+        current_user = CustomUser.objects.get(id=user_id)
+        if current_user:
+            serializer.update(current_user, serializer.validated_data)
+            return Response(data={'res_code': 0, 'res_msg' : 'success', 'user_id': user_id}, status=status.HTTP_200_OK)
+        return Response({'res_code': 1, 'res_msg': serializer.errors}, status=status.HTTP_204_NO_CONTENT)
 
 
 class UploadUserDocumentFileView(GenericAPIView):
