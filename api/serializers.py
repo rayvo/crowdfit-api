@@ -217,3 +217,29 @@ class UpdateUserSerializer(serializers.Serializer):
 
     class Meta:
         fields = ('user_id', 'fullname', 'nickname', 'birthday', 'phone', 'gender', 'blood_type')
+
+
+class CEORegisterSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+    document_file_id = serializers.IntegerField(allow_null=True, required=False)
+    apt_name = serializers.CharField(max_length=150, allow_null=False, required=True)
+    city_id = serializers.IntegerField(allow_null=False)
+    address_gu = serializers.CharField(max_length=50, allow_null=False)
+    address_dong = serializers.CharField(max_length=50, allow_null=False)
+    address_road = serializers.CharField(max_length=250, allow_null=False)
+    address_detail = serializers.CharField(max_length=100, allow_null=False)
+    postcode = serializers.CharField(max_length=10, allow_null=False)
+    # phone = serializers.CharField(max_length=15)
+    phone = serializers.CharField(max_length=15, allow_null=False, required=False, validators=[settings.PHONE_REGEX])
+    latitude = serializers.DecimalField(max_digits=11, decimal_places=8, default=0, allow_null=False)
+    longitude = serializers.DecimalField(max_digits=11, decimal_places=8, default=0, allow_null=False)
+    description = serializers.CharField(max_length=500, allow_null=False)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = (
+            'user_id', 'document_id', 'apt_name', 'city_id', 'address_gu', 'address_dong', 'address_road', 'address_detail',
+            'postcode', 'phone', 'latitude', 'longitude', 'description')
+        extra_kwargs = {'password': {'write_only': True, 'required': True}}

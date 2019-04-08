@@ -18,8 +18,10 @@ from django.utils import timezone
 
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
     UploadUserDocumentFileSerializer, RequestUserRoleStatusSerializer, DeleteUserDocumentFileSerializer, \
-    UpdateUserDocumentFileSerializer, UpdateUserSerializer
-from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login
+    UpdateUserDocumentFileSerializer, UpdateUserSerializer, CEORegisterSerializer
+from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
+    DepartmentRole, Role, Status
+from crowdfit_api.user.serializers import ApartmentSerializers
 
 CustomUser = get_user_model()
 
@@ -226,7 +228,7 @@ class CrowdfitUpdateUserView(GenericAPIView):
         current_user = CustomUser.objects.get(id=user_id)
         if current_user:
             serializer.update(current_user, serializer.validated_data)
-            return Response(data={'res_code': 0, 'res_msg' : 'success', 'user_id': user_id}, status=status.HTTP_200_OK)
+            return Response(data={'res_code': 0, 'res_msg': 'success', 'user_id': user_id}, status=status.HTTP_200_OK)
         return Response({'res_code': 1, 'res_msg': serializer.errors}, status=status.HTTP_204_NO_CONTENT)
 
 
@@ -356,3 +358,97 @@ class RequestUserRoleStatusView(GenericAPIView):
             return Response(data={'id': instance.id, 'is_active': instance.is_active, 'status': instance.status_id},
                             status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CEORegisterView(GenericAPIView):
+    permission_classes = ()
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = CEORegisterSerializer
+
+    # queryset = CustomUser.objects.all().order_by('-id')
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        user = request.user
+        if not user:
+            return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
+        # 1. check apt exist or not
+        apt_name = serializer.validated_data['apt_name']
+        document_file_id = serializer.validated_data.get('document_file_id', None)
+        try:
+            # 1. apt existed -> error duplicated apartment
+            apt = Apartment.objects.get(name=apt_name)
+            return Response({'res_code': 0, 'res_message': 'APT is  duplicated', 'fullname': None},
+                            status=status.HTTP_409_CONFLICT)
+        except Apartment.DoesNotExist:
+            # 2.0 pre-check data
+            # check existing role name=ceo
+            try:
+                role_ceo = Role.objects.get(role=settings.CROWDFIT_API_ROLE_NAME_CEO)
+            except Role.DoesNotExist:
+                return Response({'res_code': 1, 'res_message': 'role ceo not found', 'fullname': None},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # check existing department index admin id
+            try:
+                _ = DepartmentIndex.objects.get(id=settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID)
+            except DepartmentIndex.DoesNotExist:
+                return Response({'res_code': 1, 'res_message': 'department index admin id not found', 'fullname': None},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # check existing status id: 회원가입중 (Becoming a member)
+            try:
+                _ = Status.objects.get(id=settings.CROWDFIT_API_USER_ROLE_STATUS_MEMBER)
+            except Status.DoesNotExist:
+                return Response(
+                    {'res_code': 1, 'res_message': 'status (Becoming a member) not found', 'fullname': None},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # 2.1 create new apt
+            apt_data = dict(serializer.validated_data)
+            #
+            apt = Apartment(city_id=apt_data['city_id'],
+                            name=apt_data['apt_name'],
+                            address_gu=apt_data['address_gu'],
+                            address_dong=apt_data['address_dong'],
+                            address_road=apt_data['address_road'],
+                            address_detail=apt_data['address_detail'],
+                            postcode=apt_data['postcode'],
+                            phone=apt_data['phone'],
+                            latitude=apt_data['latitude'],
+                            longtitude=apt_data['longitude'],
+                            description=apt_data['description'],
+                            is_active=False
+                            )
+            apt.save()
+            # 2.2  get all dep-index and for each dep-idex -> insert department
+            list_dep_idx = DepartmentIndex.objects.all()
+            admin_department = None
+            for department_index in list_dep_idx:
+                new_dep = Department(apartment=apt, department_index=department_index)
+                new_dep.save()
+                if department_index.id == settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID:
+                    admin_department = new_dep
+
+            # 2.3 Insert  a new row into  DepartmentRole with department_id is Adminstration ID,
+            # and role_id is the ceo id (in table role)
+            # 2.3.1 get admin role
+            # 2.3.2 create and insert department-role
+            dep_role = DepartmentRole()
+            dep_role.department = admin_department
+            dep_role.role = role_ceo
+            dep_role.is_active = True
+            dep_role.save()
+
+            # 2.4 Insert a new row into UserRoleStatus with is_active = FALSE
+            new_user_role_status = UserRoleStatus(user=user,
+                                                  department_role=dep_role,
+                                                  staff=None,
+                                                  status_id=settings.CROWDFIT_API_USER_ROLE_STATUS_MEMBER,
+                                                  document_file_id=document_file_id,
+                                                  is_active=False)
+            new_user_role_status.save()
+        # 5. return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': 1, 'res_message': 'success', 'fullname': user.fullname},
+                        status=status.HTTP_200_OK)
