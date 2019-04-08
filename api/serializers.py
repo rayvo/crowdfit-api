@@ -17,6 +17,8 @@ from django.contrib.auth import get_user_model
 # for custom user
 from django.conf import settings
 
+from crowdfit_api.user.models import City
+
 CustomUser = get_user_model()
 
 
@@ -239,7 +241,60 @@ class CEORegisterSerializer(serializers.Serializer):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
     class Meta:
-        fields = (
-            'user_id', 'document_id', 'apt_name', 'city_id', 'address_gu', 'address_dong', 'address_road', 'address_detail',
-            'postcode', 'phone', 'latitude', 'longitude', 'description')
-        extra_kwargs = {'password': {'write_only': True, 'required': True}}
+        fields = ('user_id', 'document_id', 'apt_name', 'city_id', 'address_gu', 'address_dong', 'address_road',
+                  'address_detail', 'postcode', 'phone', 'latitude', 'longitude', 'description')
+
+
+class IsApartmentExistSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=50)
+    postcode = serializers.CharField(max_length=10)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('name', 'postcode')
+
+
+class UpdateApartmentSerializer(serializers.Serializer):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    apt_id = serializers.IntegerField(required=True)
+    city_id = serializers.IntegerField(allow_null=True, required=False)
+    name = serializers.CharField(max_length=50, allow_null=False, required=False)
+    # foreign key, auto generate db column: address_id
+    address_gu = serializers.CharField(max_length=50, allow_null=False, required=False)
+    address_dong = serializers.CharField(max_length=50, allow_null=False, required=False)
+    address_road = serializers.CharField(max_length=250, allow_null=False, required=False)
+    address_detail = serializers.CharField(max_length=100, allow_null=False, required=False)
+    postcode = serializers.CharField(max_length=10, allow_null=False, required=False)
+    phone = serializers.CharField(max_length=15, required=False)
+    latitude = serializers.DecimalField(max_digits=11, decimal_places=8, allow_null=True, required=False)
+    longtitude = serializers.DecimalField(max_digits=11, decimal_places=8, allow_null=True, required=False)
+    description = serializers.CharField(max_length=500, allow_null=True, required=False)
+    is_active = serializers.BooleanField(required=False)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
+
+    class Meta:
+        fields = ('apt_id', 'city_id', 'name', 'address_gu', 'address_dong', 'address_road', 'address_detail',
+                  'postcode', 'phone', 'latitude', 'longtitude', 'description', 'is_active')
+
+
+class DeleteApartmentSerializer(serializers.Serializer):
+    # primary key
+    apt_id = serializers.IntegerField(required=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('apt_id',)

@@ -16,9 +16,11 @@ from rest_framework.response import Response
 from rest_framework.schemas import ManualSchema
 from django.utils import timezone
 
+from api import utils
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
     UploadUserDocumentFileSerializer, RequestUserRoleStatusSerializer, DeleteUserDocumentFileSerializer, \
-    UpdateUserDocumentFileSerializer, UpdateUserSerializer, CEORegisterSerializer
+    UpdateUserDocumentFileSerializer, UpdateUserSerializer, CEORegisterSerializer, IsApartmentExistSerializer, \
+    UpdateApartmentSerializer, DeleteApartmentSerializer
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
     DepartmentRole, Role, Status
 from crowdfit_api.user.serializers import ApartmentSerializers
@@ -452,3 +454,79 @@ class CEORegisterView(GenericAPIView):
         # 5. return res_code = 1, res_message: SUCCESS
         return Response({'res_code': 1, 'res_message': 'success', 'fullname': user.fullname},
                         status=status.HTTP_200_OK)
+
+
+class IsApartmentExistView(GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = IsApartmentExistSerializer
+
+    def post(self, request):
+        user = request.user
+        if not utils.is_staff_user(user):
+            return Response({'res_code': 0, 'res_message': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        # validate data
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        apt_name = serializer.validated_data['name']
+        apt_postcode = serializer.validated_data['postcode']
+        try:
+            apt = Apartment.objects.get(name=apt_name, postcode=apt_postcode)
+            return Response({'res_code': 1, 'res_message': 'APT exists in the database', 'apt_id': apt.id},
+                            status=status.HTTP_200_OK)
+        except Apartment.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'APT does not exist in the database', 'apt_id': None},
+                            status=status.HTTP_200_OK)
+
+
+class UpdateApartmentView(GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = UpdateApartmentSerializer
+    queryset = Apartment.objects.all()
+
+    def put(self, request):
+        #1. check permission
+        if not utils.is_staff_user(request.user):
+            return Response({'res_code': 0, 'res_message': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        # 2. valid data
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # 3. execute
+        apt_id = serializer.validated_data['apt_id']
+        try:
+            current_instance = Apartment.objects.get(id=apt_id)
+            serializer.update(current_instance, serializer.validated_data)
+            return Response({'res_code': 1, 'res_msg': 'success'}, status=status.HTTP_200_OK)
+        except Apartment.DoesNotExist:
+            return Response({'res_code': 0, 'res_msg': 'APT does not exist'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as exc:
+            return Response({'res_code': 0, 'res_msg': str(exc)}, status=status.HTTP_204_NO_CONTENT)
+
+
+class DeleteApartmentView(GenericAPIView):
+    permission_classes = (IsAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = DeleteApartmentSerializer
+
+    def put(self, request):
+        #1. check permission
+        if not utils.is_staff_user(request.user):
+            return Response({'res_code': 0, 'res_message': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        # 2. valid data
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # 3. execute
+        apt_id = serializer.validated_data['apt_id']
+        try:
+            current_instance = Apartment.objects.get(id=apt_id)
+            current_instance.delete()
+            return Response({'res_code': 1, 'res_msg': 'success'}, status=status.HTTP_200_OK)
+        except Apartment.DoesNotExist:
+            return Response({'res_code': 0, 'res_msg': 'APT does not exist'}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as exc:
+            return Response({'res_code': 0, 'res_msg': str(exc)}, status=status.HTTP_204_NO_CONTENT)
