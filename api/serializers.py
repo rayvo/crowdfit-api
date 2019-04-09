@@ -135,22 +135,22 @@ class UploadUserDocumentFileSerializer(serializers.Serializer):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
 
-class RequestUserRoleStatusSerializer(serializers.Serializer):
-    # "user_id: localStorage,
-    # department_role_id: null
-    # status_id: ***
-    # staff_id: null,
-    # document_file_id: null,
-    # is_active: false"
-    user_id = serializers.IntegerField(allow_null=False, required=True)
-    status_id = serializers.IntegerField(allow_null=False)
-    is_active = serializers.BooleanField(allow_null=False)
-
-    class Meta:
-        fields = ('user_id', 'status_id', 'is_active')
-
-    def create(self, validated_data):
-        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+# class RequestUserRoleStatusSerializer(serializers.Serializer):
+#     # "user_id: localStorage,
+#     # department_role_id: null
+#     # status_id: ***
+#     # staff_id: null,
+#     # document_file_id: null,
+#     # is_active: false"
+#     user_id = serializers.IntegerField(allow_null=False, required=True)
+#     status_id = serializers.IntegerField(allow_null=False)
+#     is_active = serializers.BooleanField(allow_null=False)
+#
+#     class Meta:
+#         fields = ('user_id', 'status_id', 'is_active')
+#
+#     def create(self, validated_data):
+#         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
 
 class DeleteUserDocumentFileSerializer(serializers.Serializer):
@@ -298,3 +298,33 @@ class DeleteApartmentSerializer(serializers.Serializer):
 
     class Meta:
         fields = ('apt_id',)
+
+
+class UserRegisterSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+    apt_id = serializers.IntegerField(allow_null=False, required=True)
+    address_dong = serializers.CharField(max_length=150, allow_null=False, required=True)
+    house_number = serializers.CharField(max_length=150, allow_null=False, required=True)
+    document_file_id = serializers.IntegerField(allow_null=True, required=False)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('user_id', 'apt_id', 'address_dong', 'house_number', 'document_file_id')
+
+"""
+Request role staff for selected department of apt
+"""
+class StaffRegisterSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+    apt_id = serializers.IntegerField(allow_null=False, required=True)
+    department_id = serializers.IntegerField(allow_null=False, required=True)
+    role_id = serializers.IntegerField(allow_null=False, required=True)
+    document_file_id = serializers.IntegerField(allow_null=True, required=False)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('user_id', 'apt_id', 'department_id', 'role_id', 'document_file_id')

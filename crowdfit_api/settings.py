@@ -197,16 +197,23 @@ USE_TZ = True
 TIME_ZONE = 'Asia/Seoul'
 
 # for CROWDFIT_API_CONSTANTS
-# default user-role-status for user
-CROWDFIT_API_USER_ROLE_STATUS_MEMBER = 1
+# default user-role-status for user Waiting for approval
+CROWDFIT_API_USER_ROLE_STATUS_MEMBER = 2
+CROWDFIT_API_ROLE_WAITING_FOR_APPROVAL_ID = 2
 GENDER_CHOICES = (
     (1, "Male"),
     (2, "Female")
 )
 PHONE_REGEX = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$',
                              message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
-CROWDFIT_API_ROLE_NAME_CEO = 'ceo'
+# CROWDFIT_API_ROLE_NAME_CEO = 'ceo'
+CROWDFIT_API_ROLE_NAME_CEO_ID = 15
+# role resident
+# CROWDFIT_API_ROLE_NAME_RESIDENT = '입주민'
+CROWDFIT_API_ROLE_NAME_RESIDENT_ID = 16
+# department index
 CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID = 1
+CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID = 2
 
 # end CROWDFIT_API_CONSTANTS
 
