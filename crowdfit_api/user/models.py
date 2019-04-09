@@ -399,7 +399,7 @@ class Department(models.Model):
 class Role(models.Model):
     # ID is by default
     # id = models.AutoField(primary_key=True)
-    role = models.CharField(max_length=30, null=False, blank=False)
+    role = models.CharField(max_length=30, null=False, blank=False, unique=True)
     description = models.TextField(null=True)
     is_active = models.BooleanField(default=True)
     #
