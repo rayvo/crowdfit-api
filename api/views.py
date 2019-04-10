@@ -17,13 +17,13 @@ from rest_framework.schemas import ManualSchema
 from django.utils import timezone
 
 from api import utils
+from api.permissions import IsCrowdfitCEOUser, IsCrowdfitAuthenticated
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
-    UploadUserDocumentFileSerializer, RequestUserRoleStatusSerializer, DeleteUserDocumentFileSerializer, \
-    UpdateUserDocumentFileSerializer, UpdateUserSerializer, CEORegisterSerializer, IsApartmentExistSerializer, \
-    UpdateApartmentSerializer, DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer
+    UploadUserDocumentFileSerializer, DeleteUserDocumentFileSerializer, UpdateUserDocumentFileSerializer, \
+    UpdateUserSerializer, CEORegisterSerializer, IsApartmentExistSerializer, UpdateApartmentSerializer, \
+    DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer, CreateDepartmentRoleSerializer
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
     DepartmentRole, Role, Status, Household, UserHousehold
-from crowdfit_api.user.serializers import ApartmentSerializers
 
 CustomUser = get_user_model()
 
@@ -533,7 +533,7 @@ class DeleteApartmentView(GenericAPIView):
 
 
 class UserRegisterView(GenericAPIView):
-    permission_classes = ()
+    permission_classes = (IsAuthenticated,)
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
     serializer_class = UserRegisterSerializer
@@ -721,3 +721,63 @@ class StaffRegisterView(GenericAPIView):
                          'role_id': role.id, 'role_name': role.role,
                          'status': status_waiting_for_approval.name},
                         status=status.HTTP_200_OK)
+
+
+class CreateDepartmentRoleView(GenericAPIView):
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = CreateDepartmentRoleSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        # department_id: INT
+        # role_id: INT
+        # 1. check apt exist or not
+        user = request.user
+        department_id = serializer.validated_data['department_id']
+        role_id = serializer.validated_data['role_id']
+        # 1. pre-check data
+        # 1.1. check apt exist
+        apt = utils.get_apartment(user)
+        if not apt:
+            return Response({'res_code': 0, 'res_message': 'Can not find your APT', 'fullname': user.fullname},
+                            status=status.HTTP_204_NO_CONTENT)
+        # 1.2. check department exist. department must have dep.apt_id = apt.id
+        try:
+            department = Department.objects.get(id=department_id, apartment=apt)
+        except Department.DoesNotExist:
+            return Response(
+                {'res_code': 0, 'res_message': 'Department not in your apartment', 'fullname': user.fullname,
+                 'apt_id': apt.id},
+                status=status.HTTP_204_NO_CONTENT)
+        # 1.3 check existing role by id
+        try:
+            role = Role.objects.get(id=role_id)
+        except Role.DoesNotExist:
+            return Response(
+                {'res_code': 0, 'res_message': 'role not found', 'fullname': user.fullname, 'apt_id': apt.id},
+                status=status.HTTP_204_NO_CONTENT)
+        # 1.4 check department has this role
+        dep_name = utils.get_department_name(department)
+        try:
+            exist_dep_role = DepartmentRole.objects.get(department=department, role=role)
+            return Response(
+                {'res_code': 0, 'res_message': 'Department has role', 'fullname': user.fullname,
+                 'department_id': department.id, 'department_name': dep_name,
+                 'role_id': role.id, 'role_name': role.role, 'apt_id': apt.id, 'is_active': exist_dep_role.is_active
+                 },
+                status=status.HTTP_204_NO_CONTENT)
+        except DepartmentRole.DoesNotExist:
+            pass
+        # 2. create data
+        dep_role = DepartmentRole(department=department, role=role, is_active=True)
+        dep_role.save()
+        res_msg = 'Assign role: ' + role.role + ' to department: ' + dep_name
+        # 3. final return res_code = 1, res_message: SUCCESS
+        return Response(
+            {'res_code': 1, 'res_message': 'success', 'fullname': user.fullname, 'id': dep_role.id, 'apt_id': apt.id,
+             'is_active': dep_role.is_active, 'desc': res_msg},
+            status=status.HTTP_200_OK)

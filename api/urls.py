@@ -10,7 +10,7 @@ from rest_framework import routers
 from api.views import CrowdfitObtainAuthToken, CrowdfitRegisterView, UploadUserDocumentFileView, PhoneVerificationView, \
     TokenVerificationView, DeleteUserDocumentFileView, UpdateUserDocumentFileView, \
     CrowdfitUpdateUserView, CEORegisterView, IsApartmentExistView, UpdateApartmentView, DeleteApartmentView, \
-    UserRegisterView, StaffRegisterView
+    UserRegisterView, StaffRegisterView, CreateDepartmentRoleView
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
@@ -38,6 +38,7 @@ urlpatterns = [
     path('delete_apartment/', DeleteApartmentView.as_view()),
     path('register_user/', UserRegisterView.as_view()),
     path('register_staff/', StaffRegisterView.as_view()),
+    path('create_dep_role/', CreateDepartmentRoleView.as_view()),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

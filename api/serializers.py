@@ -313,9 +313,12 @@ class UserRegisterSerializer(serializers.Serializer):
     class Meta:
         fields = ('user_id', 'apt_id', 'address_dong', 'house_number', 'document_file_id')
 
+
 """
 Request role staff for selected department of apt
 """
+
+
 class StaffRegisterSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(allow_null=False, required=True)
     apt_id = serializers.IntegerField(allow_null=False, required=True)
@@ -328,3 +331,14 @@ class StaffRegisterSerializer(serializers.Serializer):
 
     class Meta:
         fields = ('user_id', 'apt_id', 'department_id', 'role_id', 'document_file_id')
+
+
+class CreateDepartmentRoleSerializer(serializers.Serializer):
+    department_id = serializers.IntegerField(allow_null=False, required=True)
+    role_id = serializers.IntegerField(allow_null=False, required=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('department_id', 'role_id')
