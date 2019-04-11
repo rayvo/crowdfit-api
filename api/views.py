@@ -1071,7 +1071,7 @@ class ListUserByStatusView(ListAPIView):
 
 class ListStaffByStatusView(ListAPIView):
     """
-    list all staff by status
+    list all staff by status. department: All, except community
     """
     pagination_class = CustomPagination
     permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser,)
@@ -1079,6 +1079,12 @@ class ListStaffByStatusView(ListAPIView):
     renderer_classes = (renderers.JSONRenderer,)
     # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
     serializer_class = ListStaffByStatusSerializer
+
+    def is_valid_user_role_status(self, user_role_status):
+        """
+        department: All, except community
+        """
+        return user_role_status.department_role.department.department_index_id != settings.CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID
 
     # paginate_by = 100
     def get_queryset(self):
@@ -1092,26 +1098,28 @@ class ListStaffByStatusView(ListAPIView):
         current_user_id = 0
         staff_data = None
         for item in list_user_role_status:
-            apt_id = item.department_role.department.apartment_id
-            dep_id = item.department_role.department_id
-            role_id = item.department_role.role_id
-            role_name = item.department_role.role.role
-            status_id = item.status_id
-            is_active = item.is_active
-            if current_user_id == item.user_id:
-                pass
-            else:
-                # new staff data -> append old
-                if staff_data:
-                    list_staff.append(staff_data)
-                # reset data
-                staff_data = {'user_id': item.user.id, 'fullname': item.user.fullname, 'list_dep_role_status': []}
-                current_user_id = item.user_id
-            # append dep-role data for current user
-            staff_data['list_dep_role_status'].append({'apartment_id': apt_id, 'department_id': dep_id,
-                                                       'role_id': role_id,
-                                                       'role_name': role_name,
-                                                       'status_id': status_id, 'is_active': is_active})
+            if self.is_valid_user_role_status(item):
+                # department: All, except community
+                apt_id = item.department_role.department.apartment_id
+                dep_id = item.department_role.department_id
+                role_id = item.department_role.role_id
+                role_name = item.department_role.role.role
+                status_id = item.status_id
+                is_active = item.is_active
+                if current_user_id == item.user_id:
+                    pass
+                else:
+                    # new staff data -> append old
+                    if staff_data:
+                        list_staff.append(staff_data)
+                    # reset data
+                    staff_data = {'user_id': item.user.id, 'fullname': item.user.fullname, 'list_dep_role_status': []}
+                    current_user_id = item.user_id
+                # append dep-role data for current user
+                staff_data['list_dep_role_status'].append({'apartment_id': apt_id, 'department_id': dep_id,
+                                                           'role_id': role_id,
+                                                           'role_name': role_name,
+                                                           'status_id': status_id, 'is_active': is_active})
         if staff_data:
             list_staff.append(staff_data)
         queryset = list_staff
