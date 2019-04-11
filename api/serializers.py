@@ -126,7 +126,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class UploadUserDocumentFileSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(allow_null=False, required=True)
-    doc_file = serializers.FileField(allow_null=False, use_url=True)
+    doc_file = serializers.FileField(allow_null=False)
 
     class Meta:
         fields = ('user_id', 'doc_file')
@@ -167,7 +167,7 @@ class DeleteUserDocumentFileSerializer(serializers.Serializer):
 class UpdateUserDocumentFileSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(allow_null=False, required=True)
     doc_file_id = serializers.IntegerField(allow_null=False, required=True)
-    doc_file = serializers.FileField(allow_null=False, use_url=True)
+    doc_file = serializers.FileField(allow_null=False)
 
     class Meta:
         fields = ('user_id', 'doc_file_id', 'doc_file')
@@ -177,12 +177,12 @@ class UpdateUserDocumentFileSerializer(serializers.Serializer):
 
 
 class RequestUserRoleStatusSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField(allow_null=False, required=True)
-    document_file_id = serializers.IntegerField(allow_null=False, required=True)
+    # user_id = serializers.IntegerField(allow_null=False, required=True)
+    document_file = serializers.FileField(allow_null=False, required=False)
     department_role_id = serializers.IntegerField(allow_null=False, required=True)
 
     class Meta:
-        fields = ('user_id', 'doc_file_id', 'department_role_id')
+        fields = ('document_file', 'department_role_id')
 
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
@@ -192,21 +192,12 @@ class UpdateUserSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(allow_null=False, required=True)
     fullname = serializers.CharField(max_length=150, allow_null=True, required=False)
     nickname = serializers.CharField(max_length=50, allow_null=True, required=False)
-    # password = models.CharField(max_length=256, null=False, blank=False) # auto generated field
     birthday = serializers.DateField(allow_null=True, required=False)
-
-    # phone_regex = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$',
-    #                          message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
-    # phone = serializers.CharField(max_length=15, allow_null=True, required=False, validators=[phone_regex])
     phone = serializers.CharField(max_length=15, allow_null=True, required=False, validators=[settings.PHONE_REGEX])
 
-    gender = serializers.ChoiceField(
-        choices=settings.GENDER_CHOICES
-    )
-    # gender = serializers.IntegerField(allow_null=True, required=False)
+    gender = serializers.ChoiceField(choices=settings.GENDER_CHOICES)
     blood_type = serializers.CharField(max_length=3, allow_null=True, required=False)
 
-    #
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
@@ -222,8 +213,9 @@ class UpdateUserSerializer(serializers.Serializer):
 
 
 class CEORegisterSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField(allow_null=False, required=True)
-    document_file_id = serializers.IntegerField(allow_null=True, required=False)
+    # user_id = serializers.IntegerField(allow_null=False, required=True)
+    # document_file_id = serializers.IntegerField(allow_null=True, required=False)
+    document_file = serializers.FileField(allow_null=False, required=False)
     apt_name = serializers.CharField(max_length=150, allow_null=False, required=True)
     city_id = serializers.IntegerField(allow_null=False)
     address_gu = serializers.CharField(max_length=50, allow_null=False)
@@ -241,7 +233,7 @@ class CEORegisterSerializer(serializers.Serializer):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
     class Meta:
-        fields = ('user_id', 'document_id', 'apt_name', 'city_id', 'address_gu', 'address_dong', 'address_road',
+        fields = ('document_file', 'apt_name', 'city_id', 'address_gu', 'address_dong', 'address_road',
                   'address_detail', 'postcode', 'phone', 'latitude', 'longitude', 'description')
 
 
@@ -305,7 +297,7 @@ class UserRegisterSerializer(serializers.Serializer):
     apt_id = serializers.IntegerField(allow_null=False, required=True)
     address_dong = serializers.CharField(max_length=150, allow_null=False, required=True)
     house_number = serializers.CharField(max_length=150, allow_null=False, required=True)
-    document_file_id = serializers.IntegerField(allow_null=True, required=False)
+    document_file = serializers.FileField(allow_null=True, required=False)
 
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
@@ -320,17 +312,17 @@ Request role staff for selected department of apt
 
 
 class StaffRegisterSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField(allow_null=False, required=True)
+    # user_id = serializers.IntegerField(allow_null=False, required=True)
     apt_id = serializers.IntegerField(allow_null=False, required=True)
     department_id = serializers.IntegerField(allow_null=False, required=True)
     role_id = serializers.IntegerField(allow_null=False, required=True)
-    document_file_id = serializers.IntegerField(allow_null=True, required=False)
+    document_file = serializers.FileField(allow_null=True, required=False)
 
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
     class Meta:
-        fields = ('user_id', 'apt_id', 'department_id', 'role_id', 'document_file_id')
+        fields = ('apt_id', 'department_id', 'role_id', 'document_file')
 
 
 class CreateDepartmentRoleSerializer(serializers.Serializer):
@@ -342,3 +334,78 @@ class CreateDepartmentRoleSerializer(serializers.Serializer):
 
     class Meta:
         fields = ('department_id', 'role_id')
+
+
+class DeleteDepartmentRoleSerializer(serializers.Serializer):
+    dep_role_id = serializers.IntegerField(allow_null=False, required=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('dep_role_id',)
+
+
+class ApproveCEOSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('user_id',)
+
+
+class ListUserByStatusSerializer(serializers.Serializer):
+    # (fullname, address_dong, household_number, phone, last_update, document_url)
+    # { 'user': {fullname, phone}, 'household': {address_dong, household_number}, 'role_status': {document_url} }
+    # for item in list_user_role_status:
+    #     # 1. user-info
+    #     user_info = {'fullname': item.user.fullname, 'phone': item.user.phone, 'user_id': item.user_id}
+    #     # 2. house-hold info
+    #     list_user_household = UserHousehold.objects.filter(user_id=item.user_id)
+    #     household = {}
+    #     if len(list_user_household) > 0:
+    #         user_household = list_user_household[0]
+    #         household = {'address_dong': user_household.household.address_dong,
+    #                      'household_number': user_household.household.house_number}
+    #     # 3. role-status
+    #     role_status = {'document_url': item.document_file.file_url.url}
+    #     # 4. insert
+    #     list_user.append({'user': user_info, 'household': household, 'role_status': role_status})
+    fullname = serializers.CharField(allow_null=True, required=True)
+    address_dong = serializers.CharField(allow_null=True, required=True)
+    household_number = serializers.CharField(allow_null=True, required=True)
+    phone = serializers.CharField(allow_null=True, required=True)
+    last_update = serializers.DateTimeField(allow_null=True, required=True)
+    document_url = serializers.CharField(allow_null=True, required=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('fullname', 'address_dong', 'household_number', 'phone', 'last_update', 'document_url',)
+
+
+class DepRoleStatusSerializer(serializers.Serializer):
+    apartment_id = serializers.IntegerField(required=True)
+    department_id = serializers.IntegerField(required=True)
+    role_id = serializers.IntegerField(required=True)
+    status_id = serializers.IntegerField(required=True)
+    is_active = serializers.BooleanField(required=True)
+
+
+class ListStaffByStatusSerializer(serializers.Serializer):
+    """
+    same as list user by status, 'cause staff is also user
+    """
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+    fullname = serializers.CharField(allow_null=False, required=True)
+    list_dep_role_status = DepRoleStatusSerializer(many=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('user_id', 'fullname', 'list_dep_role_status')
+

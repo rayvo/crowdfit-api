@@ -10,20 +10,24 @@ from rest_framework import parsers, renderers, status
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.compat import coreapi, coreschema
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.schemas import ManualSchema
 from django.utils import timezone
 
 from api import utils
-from api.permissions import IsCrowdfitCEOUser, IsCrowdfitAuthenticated
+from api.pagination import CustomPagination
+from api.permissions import IsCrowdfitCEOUser, IsCrowdfitAuthenticated, IsCrowdfitSuperUser
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
     UploadUserDocumentFileSerializer, DeleteUserDocumentFileSerializer, UpdateUserDocumentFileSerializer, \
     UpdateUserSerializer, CEORegisterSerializer, IsApartmentExistSerializer, UpdateApartmentSerializer, \
-    DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer, CreateDepartmentRoleSerializer
+    DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer, CreateDepartmentRoleSerializer, \
+    DeleteDepartmentRoleSerializer, ApproveCEOSerializer, ListUserByStatusSerializer, RequestUserRoleStatusSerializer, \
+    ListStaffByStatusSerializer
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
     DepartmentRole, Role, Status, Household, UserHousehold
+from crowdfit_api.user.serializers import UserRoleStatusSerializers, UserSerializer
 
 CustomUser = get_user_model()
 
@@ -265,18 +269,6 @@ class UploadUserDocumentFileView(GenericAPIView):
         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# class RequestUserRoleStatusView(GenericAPIView):
-#     serializer_class = RequestUserRoleStatusSerializer
-#
-#     def post(self, request):
-#         serializer = self.serializer_class(data=request.data, context={'request': request})
-#         serializer.is_valid(raise_exception=True)
-#         # save data
-#         user_role_status = UserRoleStatus(serializer.validated_data)
-#         user_role_status.save()
-#         return Response(data={'id': user_role_status.id}, status=status.HTTP_201_CREATED)
-
-
 class DeleteUserDocumentFileView(GenericAPIView):
     throttle_classes = ()
     permission_classes = ()
@@ -334,36 +326,101 @@ class UpdateUserDocumentFileView(GenericAPIView):
         return Response(serializer.errors, status=status.HTTP_204_NO_CONTENT)
 
 
-# class RequestUserRoleStatusView(GenericAPIView):
-#     throttle_classes = ()
-#     permission_classes = ()
-#     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
-#     renderer_classes = (renderers.JSONRenderer,)
-#     #
-#     serializer_class = RequestUserRoleStatusSerializer
-#
-#     def post(self, request):
-#         serializer = self.serializer_class(data=request.data, context={'request': request})
-#         serializer.is_valid(raise_exception=True)
-#         # 1. save file to table
-#         # instance = UserRoleStatus(serializer.validated_data)
-#         # instance = serializer.create(serializer.validated_data)
-#         # instance = serializer.save()
-#         instance = UserRoleStatus()
-#         instance.user_id = serializer.validated_data['user_id']
-#         instance.department_role_id = serializer.validated_data['department_role_id']
-#         instance.document_file_id = serializer.validated_data['document_file_id']
-#         instance.status_id = settings.CROWDFIT_API_USER_ROLE_STATUS_MEMBER
-#         instance.is_active = False
-#         if instance:
-#             instance.save()
-#             return Response(data={'id': instance.id, 'is_active': instance.is_active, 'status': instance.status_id},
-#                             status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+class RequestUserRoleStatusView(GenericAPIView):
+    throttle_classes = ()
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    #
+    serializer_class = RequestUserRoleStatusSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        if not user:
+            # return Response(serializer.errors, status=status.HTTP_403_FORBIDDEN)
+            return Response({'res_code': 0, 'res_message': serializer.errors, 'fullname': None},
+                            status=status.HTTP_403_FORBIDDEN)
+        # 1. get input
+        document_file = serializer.validated_data.get('document_file', None)  # allow null
+        department_role_id = serializer.validated_data.get('department_role_id')  # not null
+        # 2. pre-check input
+        # check existing department_role_id
+        try:
+            department_role = DepartmentRole.objects.get(id=department_role_id)
+        except DepartmentRole.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'Department role does not exist', 'fullname': user.fullname},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # 2.1 check same apartment
+        apt = utils.get_apartment(user=user)
+        if not apt:
+            return Response({'res_code': 0, 'res_message': 'Can not find apartment for user', 'fullname': user.fullname,
+                             'user_id': user.id},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if apt.id != department_role.department.apartment.id:
+            return Response(
+                {'res_code': 0, 'res_message': 'APT of user and APT of dep-role mismatch', 'fullname': user.fullname,
+                 'user_id': user.id, 'user_apt_id': apt.id,
+                 'dep_role_apt_id': department_role.department.apartment.id},
+                status=status.HTTP_400_BAD_REQUEST)
+        # 2.2 check existing status id: Waiting for approval
+        try:
+            _ = Status.objects.get(id=settings.CROWDFIT_API_ROLE_WAITING_FOR_APPROVAL_ID)
+        except Status.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'status (Waiting for Approval) not found'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # 2.3 check exist user-role-status
+        try:
+            current_user_role_status = UserRoleStatus.objects.get(user=user, department_role_id=department_role_id)
+            return Response({'res_code': 0, 'res_message': 'Department role duplicated', 'fullname': user.fullname,
+                             'is_active': current_user_role_status.is_active,
+                             'current_user_role_status_id': current_user_role_status.id,
+                             'status_id': current_user_role_status.status.id,
+                             'status_name': current_user_role_status.status.name
+                             },
+                            status=status.HTTP_409_CONFLICT)
+        except UserRoleStatus.DoesNotExist:
+            # return in try block so just continue
+            pass
+        # 3. do processing
+        # 3.1 save document-file to table document-file
+        document_file_id = None
+        document_file_url = None
+        document_file_name = None
+        doc_file = DocumentFile()
+        if document_file:
+            doc_file.file_url = serializer.validated_data['document_file']
+            doc_file.user = user
+            doc_file.file_name = doc_file.file_url.name
+            doc_file.file_size = doc_file.file_url.size
+            doc_file.file_type = doc_file.file_url.file.content_type;
+            doc_file.user_id = user.id
+            doc_file.save()
+            document_file_id = doc_file.id
+            document_file_url = doc_file.file_url.url
+            document_file_name = doc_file.file_name
+        # 2.4 Insert a new row into UserRoleStatus with is_active = FALSE
+        new_user_role_status = UserRoleStatus(user=user,
+                                              department_role_id=department_role_id,
+                                              staff=None,
+                                              status_id=settings.CROWDFIT_API_ROLE_WAITING_FOR_APPROVAL_ID,
+                                              document_file_id=document_file_id,
+                                              is_active=False)
+        new_user_role_status.save()
+        # 4. send response
+        return Response({'res_code': 1, 'res_message': 'success', 'fullname': user.fullname,
+                         'user_role_status_id': new_user_role_status.id,
+                         'document_file_id': document_file_id, 'document_file_url': document_file_url,
+                         'document_file_name': document_file_name,
+                         'status_id': new_user_role_status.status.id,
+                         'status_name': new_user_role_status.status.name
+                         },
+                        status=status.HTTP_200_OK)
 
 
 class CEORegisterView(GenericAPIView):
-    permission_classes = ()
+    permission_classes = (IsAuthenticated,)
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
     serializer_class = CEORegisterSerializer
@@ -379,7 +436,8 @@ class CEORegisterView(GenericAPIView):
                             status=status.HTTP_403_FORBIDDEN)
         # 1. check apt exist or not
         apt_name = serializer.validated_data['apt_name']
-        document_file_id = serializer.validated_data.get('document_file_id', None)
+        # document_file_id = serializer.validated_data.get('document_file_id', None)
+        document_file = serializer.validated_data.get('document_file', None)
         try:
             # 1. apt existed -> error duplicated apartment
             apt = Apartment.objects.get(name=apt_name)
@@ -442,7 +500,22 @@ class CEORegisterView(GenericAPIView):
             dep_role.role = role_ceo
             dep_role.is_active = True
             dep_role.save()
-
+            # 2.3.3. save file to table documentfile
+            doc_file = DocumentFile()
+            document_file_id = None
+            document_file_url = None
+            document_file_name = None
+            if document_file:
+                doc_file.file_url = serializer.validated_data['document_file']
+                doc_file.user = user
+                doc_file.file_name = doc_file.file_url.name
+                doc_file.file_size = doc_file.file_url.size
+                doc_file.file_type = doc_file.file_url.file.content_type;
+                doc_file.user_id = user.id
+                doc_file.save()
+                document_file_id = doc_file.id
+                document_file_url = doc_file.file_url.url
+                document_file_name = doc_file.file_name
             # 2.4 Insert a new row into UserRoleStatus with is_active = FALSE
             new_user_role_status = UserRoleStatus(user=user,
                                                   department_role=dep_role,
@@ -452,7 +525,9 @@ class CEORegisterView(GenericAPIView):
                                                   is_active=False)
             new_user_role_status.save()
         # 5. return res_code = 1, res_message: SUCCESS
-        return Response({'res_code': 1, 'res_message': 'success', 'fullname': user.fullname, 'apt_id': apt.id},
+        return Response({'res_code': 1, 'res_message': 'success', 'fullname': user.fullname, 'apt_id': apt.id,
+                         'document_file_id': document_file_id, 'document_file_url': document_file_url,
+                         'document_file_name': document_file_name},
                         status=status.HTTP_200_OK)
 
 
@@ -552,7 +627,7 @@ class UserRegisterView(GenericAPIView):
         # document_file_id: INT/NULL
         # 1. check apt exist or not
         apt_id = serializer.validated_data['apt_id']
-        document_file_id = serializer.validated_data.get('document_file_id', None)
+        document_file = serializer.validated_data.get('document_file', None)
         address_dong = serializer.validated_data.get('address_dong')
         house_number = serializer.validated_data.get('house_number')
         try:
@@ -607,14 +682,33 @@ class UserRegisterView(GenericAPIView):
                  'is_active': current_user_role_status.is_active, 'status': current_user_role_status.status.name},
                 status=status.HTTP_409_CONFLICT)
         except UserRoleStatus.DoesNotExist:
-            # 3.1.3 Insert a new row into UserRoleStatus with is_active = FALSE
-            new_user_role_status = UserRoleStatus(user=user,
-                                                  department_role=dep_role,
-                                                  staff=None,
-                                                  status=status_waiting_for_approval,
-                                                  document_file_id=document_file_id,
-                                                  is_active=False)
-            new_user_role_status.save()
+            # return in try block so just continue
+            pass
+        # 3.1.3. save file to table documentfile
+        document_file_id = None
+        document_file_url = None
+        document_file_name = None
+        doc_file = DocumentFile()
+        if document_file:
+            doc_file.file_url = serializer.validated_data['document_file']
+            doc_file.user = user
+            doc_file.file_name = doc_file.file_url.name
+            doc_file.file_size = doc_file.file_url.size
+            doc_file.file_type = doc_file.file_url.file.content_type;
+            doc_file.user_id = user.id
+            doc_file.save()
+            #
+            document_file_id = doc_file.id
+            document_file_url = doc_file.file_url.url
+            document_file_name = doc_file.file_name
+        # 3.1.4 Insert a new row into UserRoleStatus with is_active = FALSE
+        new_user_role_status = UserRoleStatus(user=user,
+                                              department_role=dep_role,
+                                              staff=None,
+                                              status=status_waiting_for_approval,
+                                              document_file_id=document_file_id,
+                                              is_active=False)
+        new_user_role_status.save()
         # 4. for Household
         # 4.1 table household: Check if the house_number with dept_id and address_dong exists in the table Household or not
         is_owner = False
@@ -626,11 +720,6 @@ class UserRegisterView(GenericAPIView):
             household.save()
             is_owner = True
         # 4.2 userhousehold
-        # user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_list')
-        # household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name='households')
-        # is_owner = models.BooleanField(default=False)
-        # is_active = models.BooleanField(default=True)
-
         user_household = UserHousehold(user=user, household=household, is_active=False, is_owner=is_owner)
         user_household.save()
         # 5. return res_code = 1, res_message: SUCCESS
@@ -640,7 +729,7 @@ class UserRegisterView(GenericAPIView):
 
 
 class StaffRegisterView(GenericAPIView):
-    permission_classes = ()
+    permission_classes = (IsCrowdfitAuthenticated,)
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
     serializer_class = StaffRegisterSerializer
@@ -656,12 +745,12 @@ class StaffRegisterView(GenericAPIView):
         # apt_id: INT
         # department_id: INT
         # role_id: INT
-        # document_file_id: INT/NULL
+        # document_file: File/NULL
         # 1. check apt exist or not
         apt_id = serializer.validated_data['apt_id']
         department_id = serializer.validated_data['department_id']
         role_id = serializer.validated_data['role_id']
-        document_file_id = serializer.validated_data.get('document_file_id', None)
+        document_file = serializer.validated_data.get('document_file', None)
         # 1. pre-check data
         # 1.1. check apt exist
         try:
@@ -707,19 +796,38 @@ class StaffRegisterView(GenericAPIView):
                  'is_active': current_user_role_status.is_active, 'status': current_user_role_status.status.name},
                 status=status.HTTP_409_CONFLICT)
         except UserRoleStatus.DoesNotExist:
-            # 2.2 Insert a new row into UserRoleStatus with is_active = FALSE
-            new_user_role_status = UserRoleStatus(user=user,
-                                                  department_role=dep_role,
-                                                  staff=None,
-                                                  status=status_waiting_for_approval,
-                                                  document_file_id=document_file_id,
-                                                  is_active=False)
-            new_user_role_status.save()
+            pass
+        # 2.3.3. save file to table documentfile
+        doc_file = DocumentFile()
+        document_file_id = None
+        document_file_url = None
+        document_file_name = None
+        if document_file:
+            doc_file.file_url = serializer.validated_data['document_file']
+            doc_file.user = user
+            doc_file.file_name = doc_file.file_url.name
+            doc_file.file_size = doc_file.file_url.size
+            doc_file.file_type = doc_file.file_url.file.content_type;
+            doc_file.user_id = user.id
+            doc_file.save()
+            #
+            document_file_id = doc_file.id
+            document_file_url = doc_file.file_url.url
+            document_file_name = doc_file.file_name
+        # 2.3.4 Insert a new row into UserRoleStatus with is_active = FALSE
+        new_user_role_status = UserRoleStatus(user=user,
+                                              department_role=dep_role,
+                                              staff=None,
+                                              status=status_waiting_for_approval,
+                                              document_file_id=document_file_id,
+                                              is_active=False)
+        new_user_role_status.save()
         # 3. final return res_code = 1, res_message: SUCCESS
         return Response({'res_code': 1, 'res_message': 'success', 'fullname': user.fullname,
                          'department_id': department.id, 'department_name': department.department_index.name,
-                         'role_id': role.id, 'role_name': role.role,
-                         'status': status_waiting_for_approval.name},
+                         'role_id': role.id, 'role_name': role.role, 'status': status_waiting_for_approval.name,
+                         'document_file_id': document_file_id, 'document_file_url': document_file_url,
+                         'document_file_name': document_file_name},
                         status=status.HTTP_200_OK)
 
 
@@ -781,3 +889,230 @@ class CreateDepartmentRoleView(GenericAPIView):
             {'res_code': 1, 'res_message': 'success', 'fullname': user.fullname, 'id': dep_role.id, 'apt_id': apt.id,
              'is_active': dep_role.is_active, 'desc': res_msg},
             status=status.HTTP_200_OK)
+
+
+class DeleteDepartmentRoleView(GenericAPIView):
+    """
+    superuser: need not check is owner of apt or not
+    ceo: user must be creator of apt
+    """
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = DeleteDepartmentRoleSerializer
+
+    def delete(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        # department_id: INT
+        # role_id: INT
+        # 1. check apt exist or not
+        user = request.user
+        dep_role_id = serializer.validated_data['dep_role_id']
+        # 1. pre-check data
+        try:
+            dep_role = DepartmentRole.objects.get(id=dep_role_id)
+        except DepartmentRole.DoesNotExist:
+            return Response(
+                {'res_code': 0, 'res_message': 'Department role does not exist', 'fullname': user.fullname,
+                 'dep_role_id': dep_role_id}, status=status.HTTP_204_NO_CONTENT)
+        # 1.1 check permission. if superuser -> allow, ceo-> check same apt
+        if not utils.is_superuser(user):
+            apt = utils.get_apartment(user)
+            if apt.id != dep_role.department.apartment.id:
+                return Response(
+                    {'res_code': 0, 'res_message': 'Difference APT', 'fullname': user.fullname,
+                     'dep_role_id': dep_role_id}, status=status.HTTP_204_NO_CONTENT)
+        apt_id = dep_role.department.apartment_id
+        role_name = dep_role.role.role
+        dep_name = utils.get_department_name(dep_role.department)
+        desc = 'delete role: ' + role_name + ' for department: ' + dep_name
+        # 2. execute delete
+        dep_role.delete()
+        # 3. final return res_code = 1, res_message: SUCCESS
+        return Response(
+            {'res_code': 1, 'res_message': 'success', 'fullname': user.fullname, 'dep_role_id': dep_role_id,
+             'apt_id': apt_id,
+             'is_active': dep_role.is_active, 'desc': desc},
+            status=status.HTTP_200_OK)
+
+
+class ApproveCEOView(GenericAPIView):
+    """
+    only superuser can do this action
+    approve role ceo for user
+    """
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitSuperUser)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = ApproveCEOSerializer
+
+    def is_valid_user_role_status(self, data):
+        """
+        department = CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID = 1
+        role = CROWDFIT_API_ROLE_NAME_CEO_ID = 15
+        approve role ceo for user
+        """
+        return data.department_role.department_id == settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID \
+               and data.department_role.role_id == settings.CROWDFIT_API_ROLE_NAME_CEO_ID
+
+    def put(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        # department_id: INT
+        # role_id: INT
+        # 1. check apt exist or not
+        user = request.user
+        ceo_id = serializer.validated_data['user_id']
+        # 1. pre-check data
+        try:
+            ceo_user = CustomUser.objects.get(id=ceo_id)
+        except CustomUser.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'User not found',
+                             'user_id': ceo_id}, status=status.HTTP_204_NO_CONTENT)
+        # check existing status id: Approve
+        try:
+            status_approve = Status.objects.get(id=settings.CROWDFIT_API_STATUS_APPROVE)
+        except Status.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'status: Approve not found',
+                             'status_id': settings.CROWDFIT_API_STATUS_APPROVE},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # get role ceo
+        list_user_role_status = UserRoleStatus.objects.filter(user_id=ceo_id)
+        for user_role_status in list_user_role_status:
+            if self.is_valid_user_role_status(user_role_status):
+                # 2.1 if is_active == True means approved -> send error
+                if user_role_status.is_active:
+                    return Response({'res_code': 0, 'res_message': 'approved'},
+                                    status=status.HTTP_409_CONFLICT)
+                # 2.2 is_active == False: do approve
+                user_role_status.is_active = True
+                user_role_status.staff = user
+                user_role_status.status = status_approve
+                user_role_status.save()
+                return Response({'res_code': 1, 'res_message': 'success'},
+                                status=status.HTTP_200_OK)
+        # 3. final return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': 0, 'res_message': 'role ceo not found'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ListUserRoleStatusView(ListAPIView):
+    """
+    list all role status of user
+    """
+    pagination_class = CustomPagination
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
+    serializer_class = UserRoleStatusSerializers
+    model = serializer_class.Meta.model
+
+    # paginate_by = 100
+    def get_queryset(self):
+        user_id = self.kwargs['user_id']
+        queryset = self.model.objects.filter(user_id=user_id)
+        return queryset.order_by('-id')
+
+
+class ListUserByStatusView(ListAPIView):
+    """
+    list all user by status
+    """
+    pagination_class = CustomPagination
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
+    serializer_class = ListUserByStatusSerializer
+
+    # paginate_by = 100
+    def is_valid_user_role_status(self, data):
+        """
+        department = CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID = 2
+        role = CROWDFIT_API_ROLE_NAME_RESIDENT_ID = 16
+        """
+        return utils.is_valid_user_role_status(data, settings.CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID,
+                                               settings.CROWDFIT_API_ROLE_NAME_RESIDENT_ID)
+
+    def get_queryset(self):
+        status_id = self.kwargs['status_id']
+        list_user_role_status = UserRoleStatus.objects.filter(status=status_id).order_by('-id')
+        list_user = []
+        # (fullname, address_dong, household_number, phone, last_update, document_url)
+        # { 'user': {fullname, phone}, 'household': {address_dong, household_number}, 'role_status': {document_url} }
+        # department : Community, Role: Resident
+        for item in list_user_role_status:
+            if self.is_valid_user_role_status(item):
+                tmp = {}
+                # 1. user-info
+                tmp = {'fullname': item.user.fullname, 'phone': item.user.phone, 'user_id': item.user_id}
+                # 2. house-hold info
+                list_user_household = UserHousehold.objects.filter(user_id=item.user_id)
+                if len(list_user_household) > 0:
+                    user_household = list_user_household[0]
+                    tmp['address_dong'] = user_household.household.address_dong
+                    tmp['household_number'] = user_household.household.house_number
+                else:
+                    tmp['address_dong'] = None
+                    tmp['household_number'] = None
+                # 3. role-status
+                tmp['document_url'] = item.document_file.file_url.url
+                tmp['last_update'] = item.last_update
+                # 4. insert
+                # list_user.append({'user': user_info, 'household': household, 'role_status': role_status})
+                list_user.append(tmp)
+        queryset = list_user
+        return queryset
+
+
+class ListStaffByStatusView(ListAPIView):
+    """
+    list all staff by status
+    """
+    pagination_class = CustomPagination
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
+    serializer_class = ListStaffByStatusSerializer
+
+    # paginate_by = 100
+    def get_queryset(self):
+        status_id = self.kwargs['status_id']
+        list_user_role_status = UserRoleStatus.objects.filter(status=status_id).order_by('-user_id')
+        # [ { 'user_id':1, 'roles': [ {dep_id, role_id} ]} ]
+        list_staff = []
+        # (fullname, address_dong, household_number, phone, last_update, document_url)
+        # { 'user': {fullname, phone}, 'household': {address_dong, household_number}, 'role_status': {document_url} }
+        # department : Community, Role: Resident
+        current_user_id = 0
+        staff_data = None
+        for item in list_user_role_status:
+            apt_id = item.department_role.department.apartment_id
+            dep_id = item.department_role.department_id
+            role_id = item.department_role.role_id
+            role_name = item.department_role.role.role
+            status_id = item.status_id
+            is_active = item.is_active
+            if current_user_id == item.user_id:
+                pass
+            else:
+                # new staff data -> append old
+                if staff_data:
+                    list_staff.append(staff_data)
+                # reset data
+                staff_data = {'user_id': item.user.id, 'fullname': item.user.fullname, 'list_dep_role_status': []}
+                current_user_id = item.user_id
+            # append dep-role data for current user
+            staff_data['list_dep_role_status'].append({'apartment_id': apt_id, 'department_id': dep_id,
+                                                       'role_id': role_id,
+                                                       'role_name': role_name,
+                                                       'status_id': status_id, 'is_active': is_active})
+        if staff_data:
+            list_staff.append(staff_data)
+        queryset = list_staff
+        return queryset

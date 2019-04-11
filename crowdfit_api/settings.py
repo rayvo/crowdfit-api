@@ -196,10 +196,16 @@ USE_L10N = True
 USE_TZ = True
 TIME_ZONE = 'Asia/Seoul'
 
+# for serializers.FileField, use_url=
+# default is True if not set
+# UPLOADED_FILES_USE_URL=True
+
 # for CROWDFIT_API_CONSTANTS
 # default user-role-status for user Waiting for approval
-CROWDFIT_API_USER_ROLE_STATUS_MEMBER = 2
+# CROWDFIT_API_USER_ROLE_STATUS_MEMBER = 2
 CROWDFIT_API_ROLE_WAITING_FOR_APPROVAL_ID = 2
+CROWDFIT_API_STATUS_APPROVE = 3
+
 GENDER_CHOICES = (
     (1, "Male"),
     (2, "Female")
@@ -214,7 +220,9 @@ CROWDFIT_API_ROLE_NAME_RESIDENT_ID = 16
 # department index
 CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID = 1
 CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID = 2
-
+# response code
+RES_CODE_FAIL = 0
+RES_CODE_SUCCESS = 1
 # end CROWDFIT_API_CONSTANTS
 
 # Static files (CSS, JavaScript, Images)
