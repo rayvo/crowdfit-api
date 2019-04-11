@@ -347,6 +347,14 @@ class UserRoleStatusSerializers(serializers.ModelSerializer):
     staffs = UserSerializer(many=True, read_only=True)
     status_list = StatusSerializers(many=True, read_only=True)
     document_files = DocumentFileSerializers(many=True, read_only=True)
+    # extra field.
+    # ref: https://stackoverflow.com/questions/14583816/django-rest-framework-how-to-add-custom-field-in-modelserializer
+    # value of field_name = <get>_field_name(self, obj)
+    dep_name = serializers.SerializerMethodField(read_only=True)
+
+    def get_dep_name(self, obj):
+        return obj.department_role.department.name if obj.department_role.department.name \
+            else obj.department_role.department.department_index.name
 
     class Meta:
         model = UserRoleStatus
@@ -357,7 +365,7 @@ class UserRoleStatusSerializers(serializers.ModelSerializer):
             'status', 'status_list',
             'document_file', 'document_files',
             'staff_id', 'staffs',
-            'is_active',
+            'is_active', 'dep_name',
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}
