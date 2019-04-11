@@ -24,7 +24,7 @@ from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerial
     UpdateUserSerializer, CEORegisterSerializer, IsApartmentExistSerializer, UpdateApartmentSerializer, \
     DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer, CreateDepartmentRoleSerializer, \
     DeleteDepartmentRoleSerializer, ApproveCEOSerializer, ListUserByStatusSerializer, RequestUserRoleStatusSerializer, \
-    ListStaffByStatusSerializer
+    ListStaffByStatusSerializer, ApproveStaffSerializer, ApproveUserSerializer
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
     DepartmentRole, Role, Status, Household, UserHousehold
 from crowdfit_api.user.serializers import UserRoleStatusSerializers, UserSerializer
@@ -671,7 +671,7 @@ class UserRegisterView(GenericAPIView):
         except DepartmentRole.DoesNotExist:
             return Response(
                 {'res_code': 0, 'res_message': 'Department community has no role resident', 'fullname': user.fullname
-                 # ,'department_id': department.id, 'role_resident_id': role_resident.id
+                    , 'department_id': department.id, 'role_resident_id': role_resident.id
                  },
                 status=status.HTTP_204_NO_CONTENT)
         # 3.1.2 check exist user-role-status
@@ -953,6 +953,12 @@ class ApproveCEOView(GenericAPIView):
         department = CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID = 1
         role = CROWDFIT_API_ROLE_NAME_CEO_ID = 15
         approve role ceo for user
+        1. Check if the staff_id has an authority to approve user register or not.
+        1.1 YES: Update status_id to APPROVED and is_active = TRUE in table UserRoleStatus
+        1.2 NO: return res_code = 0/ res_msg = ""STAFF DOES NOT HAVE AUTHORITY""
+        2. Check if Insert new row into Househole with is_empty = FALSE
+        3. Insert new row into Userhousehole with is_owner = TRUE, is_active = TRUE
+        4. return res_code = 1/ return res_msg=""REQUEST SUCCESS)
         """
         return data.department_role.department_id == settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID \
                and data.department_role.role_id == settings.CROWDFIT_API_ROLE_NAME_CEO_ID
@@ -997,6 +1003,207 @@ class ApproveCEOView(GenericAPIView):
         # 3. final return res_code = 1, res_message: SUCCESS
         return Response({'res_code': 0, 'res_message': 'role ceo not found'},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ApproveStaffView(GenericAPIView):
+    """
+    role: (ceo, superuser)
+    approve role staff for user
+    """
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = ApproveStaffSerializer
+
+    def is_valid_user_role_status(self, data):
+        """
+        department != CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID = 2
+        role != CROWDFIT_API_ROLE_NAME_RESIDENT_ID = 16
+        """
+        return data.department_role.department.department_index_id != settings.CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID \
+               and data.department_role.role_id != settings.CROWDFIT_API_ROLE_NAME_RESIDENT_ID
+
+    def is_staff_has_permission(self, staff, user_role_status):
+        """
+        dep-role has dep-idx-id = admin
+        """
+        if not staff:
+            return False
+        # 1. if staff is superuser, return True
+        if utils.is_superuser(staff):
+            return True
+        # 2. check same apt
+        apt_staff = utils.get_apartment(staff)
+        if not apt_staff:
+            return False
+        apt_user = user_role_status.department_role.department.apartment
+        # 2.1 not same apt return False
+        if apt_staff.id != apt_user.id:
+            return False
+        # 2.2 same apt, check role
+        # 2.2.1 get all staff role in dep=admin-dep-idx(id=1)
+        require_dep_idx_id = settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID
+        require_role_id = settings.CROWDFIT_API_ROLE_NAME_CEO_ID
+        list_active_staff_role = UserRoleStatus.objects.filter(user_id=staff.id, is_active=True,
+                                                               # dep =admin
+                                                               department_role__department__department_index=require_dep_idx_id,
+                                                               # role=admin
+                                                               department_role__role_id=require_role_id
+                                                               )
+        return len(list_active_staff_role) > 0
+        # for active_staff_role in list_active_staff_role:
+        #     dep_idx_id = active_staff_role.department_role.department.department_index_id
+        #     if dep_idx_id == require_dep_idx_id:
+        #         return True
+        # return False
+
+    def put(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        # department_id: INT
+        # role_id: INT
+        # 1. check apt exist or not
+        staff = request.user
+        user_id = serializer.validated_data['user_id']
+        # 1. pre-check data
+        try:
+            waiting_approve_user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'User not found',
+                             'user_id': user_id}, status=status.HTTP_204_NO_CONTENT)
+        # check existing status id: Approve(3)
+        try:
+            status_approve = Status.objects.get(id=settings.CROWDFIT_API_STATUS_APPROVE)
+        except Status.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'status: Approve not found',
+                             'status_id': settings.CROWDFIT_API_STATUS_APPROVE},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # get all role of user
+        list_user_role_status = UserRoleStatus.objects.filter(user_id=user_id, is_active=False)
+        for user_role_status in list_user_role_status:
+            # kiem tra xem thang nay co dang request quyen staff nao khong
+            if self.is_valid_user_role_status(user_role_status):
+                # 2.2 is_active == False: do approve
+                user_role_status.is_active = True
+                user_role_status.staff = staff
+                user_role_status.status = status_approve
+                user_role_status.save()
+                # 3. response success
+                role_name = 'Approve role: ' + user_role_status.department_role.role.role
+                dep_name = utils.get_department_name(user_role_status.department_role.department)
+                return Response({'res_code': 1, 'res_message': 'success', 'user_role_status_id': user_role_status.id,
+                                 'staff_fullname': staff.fullname, 'user_id': user_id,
+                                 'role_name': role_name, 'dep_name': dep_name},
+                                status=status.HTTP_200_OK)
+        # 4. final return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': 0, 'res_message': 'User wait for approve role staff not found'},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+
+class ApproveUserView(GenericAPIView):
+    """
+    ceo, superuser, ﻿staff of administration department can do this action
+    approve role resident for user
+    """
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = ApproveUserSerializer
+
+    def is_valid_user_role_status(self, data):
+        """
+        department = CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID = 2
+        role = CROWDFIT_API_ROLE_NAME_RESIDENT_ID = 16
+        approve role ceo for user
+        """
+        return data.department_role.department.department_index_id == settings.CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID \
+               and data.department_role.role_id == settings.CROWDFIT_API_ROLE_NAME_RESIDENT_ID
+
+    def is_staff_has_permission(self, staff, user_role_status):
+        """
+        dep-role has dep-idx-id = admin
+        """
+        if not staff:
+            return False
+        # 1. if staff is superuser, return True
+        if utils.is_superuser(staff):
+            return True
+        # 2. check same apt
+        apt_staff = utils.get_apartment(staff)
+        if not apt_staff:
+            return False
+        apt_user = user_role_status.department_role.department.apartment
+        # 2.1 not same apt return False
+        if apt_staff.id != apt_user.id:
+            return False
+        # 2.2 same apt, check role
+        # 2.2.1 get all staff role in dep=admin-dep-idx(id=1)
+        require_dep_idx_id = settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID
+        list_active_staff_role = UserRoleStatus.objects.filter(user_id=staff.id, is_active=True,
+                                                               department_role__department__department_index=require_dep_idx_id)
+        return len(list_active_staff_role) > 0
+        # for active_staff_role in list_active_staff_role:
+        #     dep_idx_id = active_staff_role.department_role.department.department_index_id
+        #     if dep_idx_id == require_dep_idx_id:
+        #         return True
+        # return False
+
+    def put(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        # department_id: INT
+        # role_id: INT
+        # 1. check apt exist or not
+        staff = request.user
+        user_id = serializer.validated_data['user_id']
+        # 1. pre-check data
+        try:
+            waiting_approve_user = CustomUser.objects.get(id=user_id)
+        except CustomUser.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'User not found',
+                             'user_id': user_id}, status=status.HTTP_204_NO_CONTENT)
+        # check existing status id: Approve(3)
+        try:
+            status_approve = Status.objects.get(id=settings.CROWDFIT_API_STATUS_APPROVE)
+        except Status.DoesNotExist:
+            return Response({'res_code': 0, 'res_message': 'status: Approve not found',
+                             'status_id': settings.CROWDFIT_API_STATUS_APPROVE},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # get all role of user
+        list_user_role_status = UserRoleStatus.objects.filter(user_id=user_id)
+        for user_role_status in list_user_role_status:
+            if self.is_valid_user_role_status(user_role_status):
+                # 2.1 if is_active == True means approved -> send error
+                if user_role_status.is_active:
+                    return Response({'res_code': 0, 'res_message': 'approved'},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                # 2.2 is_active == False: do approve
+                user_role_status.is_active = True
+                user_role_status.staff = staff
+                user_role_status.status = status_approve
+                user_role_status.save()
+                # 2.3 for household
+                # 2.3.2 userhousehold -> set is_active = True
+                user_household = UserHousehold.objects.get(user_id=user_id)
+                user_household.is_active = True
+                user_household.save()
+                # 2.3.1 table household: Check if the house_number with dept_id and address_dong exists in the table Household or not
+                if user_household.is_owner:
+                    household = Household.objects.get(id=user_household.household_id)
+                    household.is_empty = False
+                    household.save()
+                # 3. response success
+                return Response({'res_code': 1, 'res_message': 'success', 'user_role_status_id': user_role_status.id,
+                                 'user_household_is_owner': user_household.is_owner,
+                                 'household_addr_dong': user_household.household.address_dong,
+                                 'household_house_number': user_household.household.house_number,
+                                 'staff_fullname': staff.fullname, 'user_id': user_id},
+                                status=status.HTTP_200_OK)
+        # 4. final return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': 0, 'res_message': 'User wait for approve role resident not found'},
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
 class ListUserRoleStatusView(ListAPIView):

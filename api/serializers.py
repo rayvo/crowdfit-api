@@ -293,7 +293,7 @@ class DeleteApartmentSerializer(serializers.Serializer):
 
 
 class UserRegisterSerializer(serializers.Serializer):
-    user_id = serializers.IntegerField(allow_null=False, required=True)
+    # user_id = serializers.IntegerField(allow_null=False, required=False)
     apt_id = serializers.IntegerField(allow_null=False, required=True)
     address_dong = serializers.CharField(max_length=150, allow_null=False, required=True)
     house_number = serializers.CharField(max_length=150, allow_null=False, required=True)
@@ -303,15 +303,13 @@ class UserRegisterSerializer(serializers.Serializer):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
     class Meta:
-        fields = ('user_id', 'apt_id', 'address_dong', 'house_number', 'document_file_id')
-
-
-"""
-Request role staff for selected department of apt
-"""
+        fields = ('apt_id', 'address_dong', 'house_number', 'document_file_id')
 
 
 class StaffRegisterSerializer(serializers.Serializer):
+    """
+    Request role staff for selected department of apt
+    """
     # user_id = serializers.IntegerField(allow_null=False, required=True)
     apt_id = serializers.IntegerField(allow_null=False, required=True)
     department_id = serializers.IntegerField(allow_null=False, required=True)
@@ -347,6 +345,26 @@ class DeleteDepartmentRoleSerializer(serializers.Serializer):
 
 
 class ApproveCEOSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('user_id',)
+
+
+class ApproveStaffSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(allow_null=False, required=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    class Meta:
+        fields = ('user_id',)
+
+
+class ApproveUserSerializer(serializers.Serializer):
     user_id = serializers.IntegerField(allow_null=False, required=True)
 
     def create(self, validated_data):
@@ -408,4 +426,3 @@ class ListStaffByStatusSerializer(serializers.Serializer):
 
     class Meta:
         fields = ('user_id', 'fullname', 'list_dep_role_status')
-
