@@ -426,3 +426,21 @@ class ListStaffByStatusSerializer(serializers.Serializer):
 
     class Meta:
         fields = ('user_id', 'fullname', 'list_dep_role_status')
+
+
+class UpdateDepartmentRoleSerializer(serializers.Serializer):
+    role_id = serializers.IntegerField(required=False, allow_null=False)
+    is_active = serializers.BooleanField(required=False, allow_null=False)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
+
+    class Meta:
+        fields = ('role_id', 'is_active')

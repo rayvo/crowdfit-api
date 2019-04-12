@@ -214,6 +214,8 @@ PHONE_REGEX = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010
                              message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
 # CROWDFIT_API_ROLE_NAME_CEO = 'ceo'
 CROWDFIT_API_ROLE_NAME_CEO_ID = 15
+# head of a section
+CROWDFIT_API_ROLE_NAME_ADMIN_ID = 5
 # role resident
 # CROWDFIT_API_ROLE_NAME_RESIDENT = '입주민'
 CROWDFIT_API_ROLE_NAME_RESIDENT_ID = 16

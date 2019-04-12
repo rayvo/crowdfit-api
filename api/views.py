@@ -18,16 +18,17 @@ from django.utils import timezone
 
 from api import utils
 from api.pagination import CustomPagination
-from api.permissions import IsCrowdfitCEOUser, IsCrowdfitAuthenticated, IsCrowdfitSuperUser
+from api.permissions import IsCrowdfitCEOUser, IsCrowdfitAuthenticated, IsCrowdfitSuperUser, IsCrowdfitAdminUser
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
     UploadUserDocumentFileSerializer, DeleteUserDocumentFileSerializer, UpdateUserDocumentFileSerializer, \
     UpdateUserSerializer, CEORegisterSerializer, IsApartmentExistSerializer, UpdateApartmentSerializer, \
     DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer, CreateDepartmentRoleSerializer, \
     DeleteDepartmentRoleSerializer, ApproveCEOSerializer, ListUserByStatusSerializer, RequestUserRoleStatusSerializer, \
-    ListStaffByStatusSerializer, ApproveStaffSerializer, ApproveUserSerializer
+    ListStaffByStatusSerializer, ApproveStaffSerializer, ApproveUserSerializer, UpdateDepartmentRoleSerializer
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
     DepartmentRole, Role, Status, Household, UserHousehold
-from crowdfit_api.user.serializers import UserRoleStatusSerializers, UserSerializer
+from crowdfit_api.user.serializers import UserRoleStatusSerializers, UserSerializer, DepartmentSerializers, \
+    ApartmentSerializers, RoleSerializers, DepartmentRoleSerializers
 
 CustomUser = get_user_model()
 
@@ -1331,3 +1332,141 @@ class ListStaffByStatusView(ListAPIView):
             list_staff.append(staff_data)
         queryset = list_staff
         return queryset
+
+
+class ListAllDepartmentView(ListAPIView):
+    """
+    list all department.
+    if user is superuser -> api_id not NULL
+    if user is ceo(superadmin, admin) -> apt_id = apt of request.user
+    """
+    pagination_class = CustomPagination
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitAdminUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
+    serializer_class = DepartmentSerializers
+
+    # paginate_by = 100
+    def set_extra_data_for_paginator(self, extra_data):
+        if self.paginator and hasattr(self.paginator, 'set_extra_attributes'):
+            self.paginator.set_extra_attributes(extra_data)
+
+    def get_queryset(self):
+        apt_id = self.kwargs.get('apt_id')
+        extra_data = {}
+        if not utils.is_superuser(self.request.user):
+            # if not same apt -> return empty
+            user_apt = utils.get_apartment(self.request.user)
+            extra_data['apt_name'] = user_apt.name
+            extra_data['is_superuser'] = False
+            if user_apt.id != apt_id:
+                queryset = []
+                self.set_extra_data_for_paginator(extra_data)
+                return queryset
+        else:
+            list_apt = Apartment.objects.filter(id=apt_id)
+            extra_data['is_superuser'] = True
+            if len(list_apt) == 1:
+                extra_data['apt_name'] = list_apt[0].name
+            else:
+                # apt not found
+                queryset = []
+                self.set_extra_data_for_paginator(extra_data)
+                return queryset
+
+        # same apt
+        list_department = Department.objects.filter(apartment_id=apt_id).order_by('id')
+        queryset = list_department
+        self.set_extra_data_for_paginator(extra_data)
+        return queryset
+
+
+class ListAllRoleOfDepartmentView(ListAPIView):
+    """
+    list all role of department.
+    if user is superuser -> not check department in apt
+    others check whether in apt or not
+    """
+    pagination_class = CustomPagination
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitAdminUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
+    serializer_class = RoleSerializers
+
+    # paginate_by = 100
+    def set_extra_data_for_paginator(self, extra_data):
+        if self.paginator and hasattr(self.paginator, 'set_extra_attributes'):
+            self.paginator.set_extra_attributes(extra_data)
+
+    def get_queryset(self):
+        department_id = self.kwargs.get('department_id')
+        extra_data = {}
+        # check exist department_id
+        list_dep = Department.objects.filter(id=department_id)
+        if len(list_dep) == 1:
+            department = list_dep[0]
+        else:
+            queryset = []
+            extra_data['is_valid_department_id'] = False
+            self.set_extra_data_for_paginator(extra_data)
+            return queryset
+        extra_data['is_valid_department_id'] = True
+        extra_data['dep_name'] = utils.get_department_name(department)
+        extra_data['apt_id'] = department.apartment_id
+        extra_data['apt_name'] = department.apartment.name
+        # check role
+        if not utils.is_superuser(self.request.user):
+            # if not same apt -> return empty
+            user_apt = utils.get_apartment(self.request.user)
+            extra_data['is_superuser'] = False
+            extra_data['admin_apt_id'] = user_apt.id
+            if user_apt.id != department.apartment_id:
+                self.set_extra_data_for_paginator(extra_data)
+                queryset = []
+                return queryset
+        #
+        list_dep_role = DepartmentRole.objects.filter(department_id=department_id).order_by('role_id')
+        queryset = []
+        for dep_role in list_dep_role:
+            queryset.append(dep_role.role)
+        self.set_extra_data_for_paginator(extra_data)
+        return queryset
+
+
+class UpdateDepartmentRoleView(GenericAPIView):
+    permission_classes = (IsAuthenticated, IsCrowdfitAdminUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = UpdateDepartmentRoleSerializer
+
+    # queryset = Apartment.objects.all()
+
+    def put(self, request, *args, **kwargs):
+        # 1. check permission
+        dep_role_id = kwargs['dep_role_id']
+        list_instance = DepartmentRole.objects.filter(id=dep_role_id)
+        if len(list_instance) != 1:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_msg': 'item not found'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        current_instance = list_instance[0]
+        # 2. valid data
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # 3. execute
+        role_id = serializer.validated_data.get('role_id', None)
+        if role_id:
+            list_role = Role.objects.filter(id=role_id)
+            if len(list_role) != 1:
+                return Response({'res_code': 0, 'res_msg': 'Role does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            # check duplicate
+            list_role = DepartmentRole.objects.filter(department_id=current_instance.department_id, role_id=role_id)
+            if len(list_role) > 0:
+                return Response({'res_code': 0, 'res_msg': 'Duplicate department-role'},
+                                status=status.HTTP_400_BAD_REQUEST)
+        serializer.update(current_instance, serializer.validated_data)
+        instance_data = {'id': dep_role_id, 'department_id': current_instance.department_id,
+                         'role_id': current_instance.role_id,
+                         'is_active': current_instance.is_active}
+        return Response({'res_code': 1, 'res_msg': 'success', 'data': instance_data}, status=status.HTTP_200_OK)

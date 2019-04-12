@@ -13,7 +13,7 @@ from api.views import CrowdfitObtainAuthToken, CrowdfitRegisterView, UploadUserD
     CrowdfitUpdateUserView, CEORegisterView, IsApartmentExistView, UpdateApartmentView, DeleteApartmentView, \
     UserRegisterView, StaffRegisterView, CreateDepartmentRoleView, DeleteDepartmentRoleView, ApproveCEOView, \
     ListUserRoleStatusView, ListUserByStatusView, RequestUserRoleStatusView, ListStaffByStatusView, ApproveUserView, \
-    ApproveStaffView
+    ApproveStaffView, ListAllDepartmentView, ListAllRoleOfDepartmentView, UpdateDepartmentRoleView
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
@@ -45,11 +45,16 @@ urlpatterns = [
     path('approve_ceo/', ApproveCEOView.as_view()),
     path('approve_staff/', ApproveStaffView.as_view()),
     path('approve_user/', ApproveUserView.as_view()),
+    path('approve_user/', ApproveUserView.as_view()),
     # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
     url(r'^list_user_role_status/(?P<user_id>\d+)/$', ListUserRoleStatusView.as_view()),
     url(r'^list_user_by_status/(?P<status_id>\d+)/$', ListUserByStatusView.as_view()),
     path('request_user_role_status/', RequestUserRoleStatusView.as_view()),
     url(r'^list_staff_by_status/(?P<status_id>\d+)/$', ListStaffByStatusView.as_view()),
+    # url(r'^list_all_department/(?P<apt_id>\d*)/$', ListAllDepartmentView.as_view()),
+    path('list_all_department/<int:apt_id>/', ListAllDepartmentView.as_view()),
+    path('list_all_role_of_department/<int:department_id>/', ListAllRoleOfDepartmentView.as_view()),
+    path('update_dep_role/<int:dep_role_id>/', UpdateDepartmentRoleView.as_view()),
 ]
 
 if settings.DEBUG:

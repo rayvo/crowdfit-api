@@ -31,6 +31,19 @@ def get_all_user_role_id(user):
     return list_user_role_id
 
 
+def get_all_user_role_id_in_dep_idx(user, dep_idx_id):
+    if not user:
+        return []
+    list_user_role_id = []
+    # 1. from table user-role-status, get all active role
+    list_active_user_role = UserRoleStatus.objects.filter(user_id=user.id, is_active=True,
+                                                          department_role__department__department_index=dep_idx_id)
+    for active_user_role in list_active_user_role:
+        active_role = active_user_role.department_role.role
+        list_user_role_id.append(active_role.id)
+    return list_user_role_id
+
+
 def get_all_user_role_name(user):
     if not user:
         return []
