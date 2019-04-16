@@ -452,6 +452,8 @@ class UserRoleStatus(models.Model):
     document_file = models.ForeignKey(DocumentFile, on_delete=models.CASCADE, related_name='document_files', null=True)
 
     is_active = models.BooleanField(default=False)
+    # reason
+    reason = models.CharField(max_length=1024, null=True)
     #
     create_date = models.DateTimeField(auto_now_add=True)
     last_update = models.DateTimeField(auto_now=True)

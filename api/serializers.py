@@ -335,13 +335,13 @@ class CreateDepartmentRoleSerializer(serializers.Serializer):
 
 
 class DeleteDepartmentRoleSerializer(serializers.Serializer):
-    dep_role_id = serializers.IntegerField(allow_null=False, required=True)
+    # dep_role_id = serializers.IntegerField(allow_null=False, required=True)
 
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
-    class Meta:
-        fields = ('dep_role_id',)
+    # class Meta:
+    #     fields = ('dep_role_id',)
 
 
 class ApproveCEOSerializer(serializers.Serializer):
@@ -464,3 +464,11 @@ class UpdateDepartmentRoleSerializer(serializers.Serializer):
 
     class Meta:
         fields = ('role_id', 'is_active')
+
+class DisapproveSerializer(serializers.Serializer):
+    id = serializers.IntegerField(allow_null=False, required=True)
+    reason = serializers.CharField(allow_null=True, required=False)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+

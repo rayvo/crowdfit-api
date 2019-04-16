@@ -24,7 +24,8 @@ from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerial
     UpdateUserSerializer, CEORegisterSerializer, IsApartmentExistSerializer, UpdateApartmentSerializer, \
     DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer, CreateDepartmentRoleSerializer, \
     DeleteDepartmentRoleSerializer, ApproveCEOSerializer, ListUserByStatusSerializer, RequestUserRoleStatusSerializer, \
-    ListStaffByStatusSerializer, ApproveStaffSerializer, ApproveUserSerializer, UpdateDepartmentRoleSerializer
+    ListStaffByStatusSerializer, ApproveStaffSerializer, ApproveUserSerializer, UpdateDepartmentRoleSerializer, \
+    DisapproveSerializer
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
     DepartmentRole, Role, Status, Household, UserHousehold
 from crowdfit_api.user.serializers import UserRoleStatusSerializers, UserSerializer, DepartmentSerializers, \
@@ -902,7 +903,7 @@ class DeleteDepartmentRoleView(GenericAPIView):
     renderer_classes = (renderers.JSONRenderer,)
     serializer_class = DeleteDepartmentRoleSerializer
 
-    def delete(self, request):
+    def delete(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         # if validate fail, exception will raise, below code is not reached
@@ -910,7 +911,8 @@ class DeleteDepartmentRoleView(GenericAPIView):
         # role_id: INT
         # 1. check apt exist or not
         user = request.user
-        dep_role_id = serializer.validated_data['dep_role_id']
+        # dep_role_id = serializer.validated_data['dep_role_id']
+        dep_role_id = kwargs['dep_role_id']
         # 1. pre-check data
         try:
             dep_role = DepartmentRole.objects.get(id=dep_role_id)
@@ -926,15 +928,22 @@ class DeleteDepartmentRoleView(GenericAPIView):
                     {'res_code': 0, 'res_message': 'Difference APT', 'fullname': user.fullname,
                      'dep_role_id': dep_role_id}, status=status.HTTP_204_NO_CONTENT)
         apt_id = dep_role.department.apartment_id
+        department_id = dep_role.department_id
+        department_name = utils.get_department_name(dep_role.department)
+        role_id = dep_role.role_id
         role_name = dep_role.role.role
-        dep_name = utils.get_department_name(dep_role.department)
-        desc = 'delete role: ' + role_name + ' for department: ' + dep_name
+        desc = 'delete role: ' + role_name + ' for department: ' + department_name
         # 2. execute delete
         dep_role.delete()
         # 3. final return res_code = 1, res_message: SUCCESS
         return Response(
-            {'res_code': 1, 'res_message': 'success', 'fullname': user.fullname, 'dep_role_id': dep_role_id,
+            {'res_code': 1, 'res_message': 'success', 'fullname': user.fullname,
+             'dep_role_id': dep_role_id,
              'apt_id': apt_id,
+             'department_id': department_id,
+             'department_name': department_name,
+             'role_id': role_id,
+             'role_name': role_name,
              'is_active': dep_role.is_active, 'desc': desc},
             status=status.HTTP_200_OK)
 
@@ -1508,3 +1517,65 @@ class SearchUserView(ListAPIView):
     def get_queryset(self):
         queryset = CustomUser.objects.all()
         return queryset
+
+
+class DisapproveView(GenericAPIView):
+    """
+    disapprove
+    need check permission
+    superuser/superadmin/admin for staff
+    superuser/superadmin/admin/staff for user
+    """
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = DisapproveSerializer
+
+    def check_role(self, user, user_role_status):
+        return True
+
+    def put(self, request):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        # department_id: INT
+        # role_id: INT
+        # 1. check apt exist or not
+        user_role_status_id = serializer.validated_data['id']
+        reason = serializer.validated_data.get('reason', None)
+        # 1. pre-check data
+        try:
+            user_role_status = UserRoleStatus.objects.get(id=user_role_status_id)
+        except UserRoleStatus.DoesNotExist:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'Item not found',
+                             'id': user_role_status_id}, status=status.HTTP_400_BAD_REQUEST)
+        # check existing status id: Approve
+        try:
+            status_rejected = Status.objects.get(id=settings.CROWDFIT_API_STATUS_REJECTED)
+        except Status.DoesNotExist:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'status: Rejected not found',
+                             'status_id': settings.CROWDFIT_API_STATUS_REJECTED},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        # check permission
+        if not self.check_role(request.user, user_role_status):
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'Permission denied',
+                             'id': user_role_status_id}, status=status.HTTP_403_FORBIDDEN)
+        # check status: must be status = Waiting for approval (2)
+        if user_role_status.status_id != settings.CROWDFIT_API_STATUS_APPROVE:
+            return Response({'res_code': settings.RES_CODE_FAIL,
+                             'res_message': 'Wrong status. Status must be: Waiting for Approval',
+                             'status': user_role_status.status_id,
+                             'status_name': user_role_status.name,
+                             'reason': reason, 'id': user_role_status_id},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # 2. do update
+        user_role_status.staff = request.user
+        user_role_status.status = status_rejected
+        user_role_status.reason = reason
+        user_role_status.save()
+
+        # 3. final return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': settings.RES_CODE_SUCCESS, 'res_message': 'success',
+                         'status': status_rejected.id,
+                         'status_name': status_rejected.name, 'reason': reason},
+                        status=status.HTTP_200_OK)
