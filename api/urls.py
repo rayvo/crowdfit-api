@@ -13,7 +13,7 @@ from api.views import CrowdfitObtainAuthToken, CrowdfitRegisterView, UploadUserD
     CrowdfitUpdateUserView, CEORegisterView, IsApartmentExistView, UpdateApartmentView, DeleteApartmentView, \
     UserRegisterView, StaffRegisterView, CreateDepartmentRoleView, DeleteDepartmentRoleView, ApproveCEOView, \
     ListUserRoleStatusView, ListUserByStatusView, RequestUserRoleStatusView, ListStaffByStatusView, ApproveUserView, \
-    ApproveStaffView, ListAllDepartmentView, ListAllRoleOfDepartmentView, UpdateDepartmentRoleView
+    ApproveStaffView, ListAllDepartmentView, ListAllRoleOfDepartmentView, UpdateDepartmentRoleView, SearchUserView
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
@@ -55,6 +55,7 @@ urlpatterns = [
     path('list_all_department/<int:apt_id>/', ListAllDepartmentView.as_view()),
     path('list_all_role_of_department/<int:department_id>/', ListAllRoleOfDepartmentView.as_view()),
     path('update_dep_role/<int:dep_role_id>/', UpdateDepartmentRoleView.as_view()),
+    path('search_user/', SearchUserView.as_view()),
 ]
 
 if settings.DEBUG:

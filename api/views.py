@@ -6,7 +6,7 @@
 from authy.api import AuthyApiClient
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from rest_framework import parsers, renderers, status
+from rest_framework import parsers, renderers, status, filters
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 from rest_framework.compat import coreapi, coreschema
@@ -1255,7 +1255,6 @@ class ListUserByStatusView(ListAPIView):
         # department : Community, Role: Resident
         for item in list_user_role_status:
             if self.is_valid_user_role_status(item):
-                tmp = {}
                 # 1. user-info
                 tmp = {'fullname': item.user.fullname, 'phone': item.user.phone, 'user_id': item.user_id}
                 # 2. house-hold info
@@ -1268,9 +1267,17 @@ class ListUserByStatusView(ListAPIView):
                     tmp['address_dong'] = None
                     tmp['household_number'] = None
                 # 3. role-status
-                tmp['document_url'] = item.document_file.file_url.url
+                if item.document_file:
+                    tmp['document_url'] = item.document_file.file_url.url
+                else:
+                    tmp['document_url'] = None
                 tmp['last_update'] = item.last_update
-                # 4. insert
+                # 4. for staff-id
+                if item.staff:
+                    tmp['staff_id'] = item.staff_id
+                else:
+                    tmp['staff_id'] = None
+                # 5. insert
                 # list_user.append({'user': user_info, 'household': household, 'role_status': role_status})
                 list_user.append(tmp)
         queryset = list_user
@@ -1312,8 +1319,15 @@ class ListStaffByStatusView(ListAPIView):
                 dep_id = item.department_role.department_id
                 role_id = item.department_role.role_id
                 role_name = item.department_role.role.role
+                last_update = item.department_role.last_update
                 status_id = item.status_id
                 is_active = item.is_active
+                staff_id = None
+                if item.staff:
+                    staff_id = item.staff_id
+                document_url = None
+                if item.document_file:
+                    document_url = item.document_file.file_url.url
                 if current_user_id == item.user_id:
                     pass
                 else:
@@ -1321,12 +1335,17 @@ class ListStaffByStatusView(ListAPIView):
                     if staff_data:
                         list_staff.append(staff_data)
                     # reset data
-                    staff_data = {'user_id': item.user.id, 'fullname': item.user.fullname, 'list_dep_role_status': []}
+                    staff_data = {'user_id': item.user.id, 'fullname': item.user.fullname, 'phone': item.user.phone,
+                                  'last_update': item.user.last_update,
+                                  'list_dep_role_status': []}
                     current_user_id = item.user_id
                 # append dep-role data for current user
                 staff_data['list_dep_role_status'].append({'apartment_id': apt_id, 'department_id': dep_id,
                                                            'role_id': role_id,
                                                            'role_name': role_name,
+                                                           'last_update': last_update,
+                                                           'staff_id': staff_id,
+                                                           'document_url': document_url,
                                                            'status_id': status_id, 'is_active': is_active})
         if staff_data:
             list_staff.append(staff_data)
@@ -1470,3 +1489,22 @@ class UpdateDepartmentRoleView(GenericAPIView):
                          'role_id': current_instance.role_id,
                          'is_active': current_instance.is_active}
         return Response({'res_code': 1, 'res_msg': 'success', 'data': instance_data}, status=status.HTTP_200_OK)
+
+
+class SearchUserView(ListAPIView):
+    """
+    list all staff by status. department: All, except community
+    """
+    pagination_class = CustomPagination
+    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitCEOUser,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
+    serializer_class = UserSerializer
+    search_fields = ('username', 'email', 'fullname', 'phone', 'nickname')
+    filter_backends = (filters.SearchFilter,)
+    queryset = CustomUser.objects.all()
+
+    def get_queryset(self):
+        queryset = CustomUser.objects.all()
+        return queryset

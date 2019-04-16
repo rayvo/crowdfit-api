@@ -391,6 +391,8 @@ class ListUserByStatusSerializer(serializers.Serializer):
     #     role_status = {'document_url': item.document_file.file_url.url}
     #     # 4. insert
     #     list_user.append({'user': user_info, 'household': household, 'role_status': role_status})
+    user_id = serializers.IntegerField(allow_null=True, required=True)
+    staff_id = serializers.IntegerField(allow_null=True, required=True)
     fullname = serializers.CharField(allow_null=True, required=True)
     address_dong = serializers.CharField(allow_null=True, required=True)
     household_number = serializers.CharField(allow_null=True, required=True)
@@ -402,7 +404,13 @@ class ListUserByStatusSerializer(serializers.Serializer):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
     class Meta:
-        fields = ('fullname', 'address_dong', 'household_number', 'phone', 'last_update', 'document_url',)
+        fields = ('user_id', 'staff_id', 'fullname', 'phone',
+                  # for household
+                  'address_dong', 'household_number',
+                  # for document-file
+                  'document_url',
+                  # last-update
+                  'last_update',)
 
 
 class DepRoleStatusSerializer(serializers.Serializer):
@@ -411,21 +419,33 @@ class DepRoleStatusSerializer(serializers.Serializer):
     role_id = serializers.IntegerField(required=True)
     status_id = serializers.IntegerField(required=True)
     is_active = serializers.BooleanField(required=True)
+    last_update = serializers.DateTimeField(allow_null=True, required=True)
+    staff_id = serializers.IntegerField(allow_null=True, required=True)
+    document_url = serializers.CharField(allow_null=True, required=True)
 
 
 class ListStaffByStatusSerializer(serializers.Serializer):
     """
     same as list user by status, 'cause staff is also user
+        staff_data = {'user_id': item.user.id, 'fullname': item.user.fullname, 'list_dep_role_status': []}
+        current_user_id = item.user_id
+        # append dep-role data for current user
+        staff_data['list_dep_role_status'].append({'apartment_id': apt_id, 'department_id': dep_id,
+        'role_id': role_id,
+        'role_name': role_name,
+        'status_id': status_id, 'is_active': is_active})
     """
     user_id = serializers.IntegerField(allow_null=False, required=True)
     fullname = serializers.CharField(allow_null=False, required=True)
+    phone = serializers.CharField(allow_null=True, required=True)
+    last_update = serializers.DateTimeField(allow_null=True, required=True)
     list_dep_role_status = DepRoleStatusSerializer(many=True)
 
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
-    class Meta:
-        fields = ('user_id', 'fullname', 'list_dep_role_status')
+    # class Meta:
+    #     fields = ('user_id', 'fullname', 'phone', 'list_dep_role_status')
 
 
 class UpdateDepartmentRoleSerializer(serializers.Serializer):

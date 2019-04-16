@@ -82,5 +82,5 @@ def is_valid_user_role_status(user_role_status, department_index_id, role_id):
     department = department_index_id
     role = role_id
     """
-    return user_role_status.department_role.department_id == department_index_id \
+    return user_role_status.department_role.department.department_index_id == department_index_id \
            and user_role_status.department_role.role_id == role_id
