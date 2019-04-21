@@ -378,7 +378,8 @@ class Department(models.Model):
     # id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=125, null=True)
     apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name='apartment_dep_list')
-    department_index = models.ForeignKey(DepartmentIndex, on_delete=models.CASCADE, related_name='depidx_dep_list', null=True)
+    department_index = models.ForeignKey(DepartmentIndex, on_delete=models.CASCADE, related_name='depidx_dep_list',
+                                         null=True)
     description = models.CharField(max_length=500, null=True)
     #
     create_date = models.DateTimeField(auto_now_add=True)
@@ -609,3 +610,21 @@ class Club(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class InvitedUser(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_iu_list', null=True)
+    fullname = models.CharField(max_length=150, null=True, blank=False)
+    phone = models.CharField(max_length=15, null=True, validators=[settings.PHONE_REGEX])
+    apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE, related_name='apartment_iu_list')
+    address_dong = models.CharField(max_length=10, null=False)
+    house_number = models.CharField(max_length=10, null=False)
+    status = models.IntegerField(choices=settings.INVITATION_STATUS_CHOICES, null=True, blank=True)
+    #
+    create_date = models.DateTimeField(auto_now_add=True)
+    last_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)

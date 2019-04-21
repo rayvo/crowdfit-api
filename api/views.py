@@ -25,11 +25,11 @@ from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerial
     DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer, CreateDepartmentRoleSerializer, \
     DeleteDepartmentRoleSerializer, ApproveCEOSerializer, ListUserByStatusSerializer, RequestUserRoleStatusSerializer, \
     ListStaffByStatusSerializer, ApproveStaffSerializer, ApproveUserSerializer, UpdateDepartmentRoleSerializer, \
-    DisapproveSerializer
+    DisapproveSerializer, InvitedUserSerializer
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
-    DepartmentRole, Role, Status, Household, UserHousehold
+    DepartmentRole, Role, Status, Household, UserHousehold, InvitedUser
 from crowdfit_api.user.serializers import UserRoleStatusSerializers, UserSerializer, DepartmentSerializers, \
-    ApartmentSerializers, RoleSerializers, DepartmentRoleSerializers
+    RoleSerializers, InvitedUserSerializers
 
 CustomUser = get_user_model()
 
@@ -1010,6 +1010,7 @@ class ApproveCEOView(GenericAPIView):
                 user_role_status.save()
                 return Response({'res_code': 1, 'res_message': 'success'},
                                 status=status.HTTP_200_OK)
+
         # 3. final return res_code = 1, res_message: SUCCESS
         return Response({'res_code': 0, 'res_message': 'role ceo not found'},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1159,6 +1160,16 @@ class ApproveUserView(GenericAPIView):
         #         return True
         # return False
 
+    def accept_invited_user(self, user):
+        # search
+        list_invited_user = InvitedUser.objects.filter(phone=user.phone, fullname=user.fullname)
+        if len(list_invited_user) == 1:
+            invited_user = list_invited_user[0]
+            invited_user.status = settings.INVITATION_STATUS_ACCEPTED
+            invited_user.save()
+            return True
+        return False
+
     def put(self, request):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
@@ -1204,12 +1215,15 @@ class ApproveUserView(GenericAPIView):
                     household = Household.objects.get(id=user_household.household_id)
                     household.is_empty = False
                     household.save()
+                # change status if exist in table invited-user
+                is_in_invited_user = self.accept_invited_user(waiting_approve_user)
                 # 3. response success
                 return Response({'res_code': 1, 'res_message': 'success', 'user_role_status_id': user_role_status.id,
                                  'user_household_is_owner': user_household.is_owner,
                                  'household_addr_dong': user_household.household.address_dong,
                                  'household_house_number': user_household.household.house_number,
-                                 'staff_fullname': staff.fullname, 'user_id': user_id},
+                                 'staff_fullname': staff.fullname, 'user_id': user_id,
+                                 'is_in_invited_user': is_in_invited_user},
                                 status=status.HTTP_200_OK)
         # 4. final return res_code = 1, res_message: SUCCESS
         return Response({'res_code': 0, 'res_message': 'User wait for approve role resident not found'},
@@ -1265,7 +1279,7 @@ class ListUserByStatusView(ListAPIView):
         for item in list_user_role_status:
             if self.is_valid_user_role_status(item):
                 # 1. user-info
-                tmp = {'fullname': item.user.fullname, 'phone': item.user.phone, 'user_id': item.user_id}
+                tmp = {'fullname': item.user.fullname, 'phone': item.user.phone, 'user_id': item.user_id, 'create_date': item.user.create_date}
                 # 2. house-hold info
                 list_user_household = UserHousehold.objects.filter(user_id=item.user_id)
                 if len(list_user_household) > 0:
@@ -1346,6 +1360,7 @@ class ListStaffByStatusView(ListAPIView):
                     # reset data
                     staff_data = {'user_id': item.user.id, 'fullname': item.user.fullname, 'phone': item.user.phone,
                                   'last_update': item.user.last_update,
+                                  'create_date': item.user.create_date,
                                   'list_dep_role_status': []}
                     current_user_id = item.user_id
                 # append dep-role data for current user
@@ -1531,17 +1546,39 @@ class DisapproveView(GenericAPIView):
     renderer_classes = (renderers.JSONRenderer,)
     serializer_class = DisapproveSerializer
 
-    def check_role(self, user, user_role_status):
-        return True
+    def check_crowdfit_permission(self, staff, user_role_status):
+        # 1. if staff is superuser -> return True
+        if utils.is_superuser(staff):
+            return True
+        # if request ceo -> return false
+        user_request_role_id = user_role_status.department_role.role_id
+        if user_request_role_id == settings.CROWDFIT_API_ROLE_NAME_CEO_ID:
+            return False
+        # 2. get apt-id
+        staff_apt = utils.get_apartment(staff)
+        user_apt = utils.get_apartment(user_role_status.user)
+        if staff_apt.id != user_apt.id:
+            return False
+        # 3. only request role: admin/staff or resident
+        # check one-by-one
+        list_staff_role_id = utils.get_all_user_role_id(staff)
+        # 3.1 request-role: admin -> staff-role: superadmin
+        if user_request_role_id == settings.CROWDFIT_API_ROLE_NAME_ADMIN_ID:
+            return settings.CROWDFIT_API_ROLE_NAME_CEO_ID in list_staff_role_id
 
-    def put(self, request):
+        # 3.3 resident: superadmin/admin/staff
+        if user_request_role_id == settings.CROWDFIT_API_ROLE_NAME_RESIDENT_ID:
+            return utils.is_staff_user(staff)
+        # 3.2 request-role: staff, staff-role: superadmin/admin
+        return settings.CROWDFIT_API_ROLE_NAME_CEO_ID in list_staff_role_id \
+               or settings.CROWDFIT_API_ROLE_NAME_ADMIN_ID in list_staff_role_id
+
+    def put(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         # if validate fail, exception will raise, below code is not reached
-        # department_id: INT
-        # role_id: INT
-        # 1. check apt exist or not
-        user_role_status_id = serializer.validated_data['id']
+        user_role_status_id = kwargs['id']
+        # user_role_status_id = serializer.validated_data['id']
         reason = serializer.validated_data.get('reason', None)
         # 1. pre-check data
         try:
@@ -1557,16 +1594,19 @@ class DisapproveView(GenericAPIView):
                              'status_id': settings.CROWDFIT_API_STATUS_REJECTED},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         # check permission
-        if not self.check_role(request.user, user_role_status):
+        staff = request.user
+        if not self.check_crowdfit_permission(staff, user_role_status):
             return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'Permission denied',
-                             'id': user_role_status_id}, status=status.HTTP_403_FORBIDDEN)
+                             'fullname': staff.fullname,
+                             'id': user_role_status_id, 'reason': reason},
+                            status=status.HTTP_403_FORBIDDEN)
         # check status: must be status = Waiting for approval (2)
-        if user_role_status.status_id != settings.CROWDFIT_API_STATUS_APPROVE:
+        if user_role_status.status_id != settings.CROWDFIT_API_ROLE_WAITING_FOR_APPROVAL_ID:
             return Response({'res_code': settings.RES_CODE_FAIL,
                              'res_message': 'Wrong status. Status must be: Waiting for Approval',
-                             'status': user_role_status.status_id,
-                             'status_name': user_role_status.name,
-                             'reason': reason, 'id': user_role_status_id},
+                             'fullname': staff.fullname,
+                             'status': user_role_status.status_id, 'status_name': user_role_status.status.name,
+                             'id': user_role_status_id, 'reason': reason},
                             status=status.HTTP_400_BAD_REQUEST)
         # 2. do update
         user_role_status.staff = request.user
@@ -1576,6 +1616,217 @@ class DisapproveView(GenericAPIView):
 
         # 3. final return res_code = 1, res_message: SUCCESS
         return Response({'res_code': settings.RES_CODE_SUCCESS, 'res_message': 'success',
-                         'status': status_rejected.id,
-                         'status_name': status_rejected.name, 'reason': reason},
+                         'fullname': staff.fullname,
+                         'status': status_rejected.id, 'status_name': status_rejected.name,
+                         'id': user_role_status_id, 'reason': reason},
                         status=status.HTTP_200_OK)
+
+
+class InvitedUserView(GenericAPIView):
+    """
+    invite user
+    """
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = InvitedUserSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        validated_data = serializer.validated_data
+        # 1. check apartment exist
+        len_apt = len(Apartment.objects.filter(id=validated_data['apartment_id']))
+        if len_apt != 1:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'APT not found',
+                             'data': None},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # 2. check (fullname, phone exist)
+        list_invited_user = InvitedUser.objects.filter(fullname=validated_data['fullname'],
+                                                       phone=validated_data['phone'])
+        if len(list_invited_user) != 0:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'User with (fullname, phone) exist',
+                             'data': {'id': list_invited_user[0].id, 'status': list_invited_user[0].status}},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # 3. create instance
+        instance = serializer.create(serializer.validated_data)
+        instance.save()
+        # 3. final return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': settings.RES_CODE_SUCCESS, 'res_message': 'success',
+                         'data': {'id': instance.id, 'status': instance.status}},
+                        status=status.HTTP_200_OK)
+
+
+class InvitedUserView(GenericAPIView):
+    """
+    invite user
+    """
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = InvitedUserSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        validated_data = serializer.validated_data
+        # 1. check apartment exist
+        len_apt = len(Apartment.objects.filter(id=validated_data['apartment_id']))
+        if len_apt != 1:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'APT not found',
+                             'data': None},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # 2. check (fullname, phone exist)
+        list_invited_user = InvitedUser.objects.filter(fullname=validated_data['fullname'],
+                                                       phone=validated_data['phone'])
+        if len(list_invited_user) != 0:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'User with (fullname, phone) exist',
+                             'data': {'id': list_invited_user[0].id, 'status': list_invited_user[0].status}},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # 3. create instance
+        instance = serializer.create(serializer.validated_data)
+        instance.save()
+        # 3. final return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': settings.RES_CODE_SUCCESS, 'res_message': 'success',
+                         'data': {'id': instance.id, 'status': instance.status}},
+                        status=status.HTTP_200_OK)
+
+
+class ReinviteUserView(GenericAPIView):
+    """
+    invite user
+    """
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+
+    def put(self, request, *args, **kwargs):
+        invite_id = kwargs['invite_id']
+        list_instance = InvitedUser.objects.filter(id=invite_id)
+        if len(list_instance) != 1:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_msg': 'item not found'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # if user status is accepted -> error
+        instance = list_instance[0]
+        if instance.status == settings.INVITATION_STATUS_ACCEPTED:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_msg': 'Cannot re-invite accepted user'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        instance.status = settings.INVITATION_STATUS_REINVITED
+        instance.save()
+        # 3. final return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': settings.RES_CODE_SUCCESS, 'res_message': 'success',
+                         'data': {'id': instance.id, 'status': instance.status}},
+                        status=status.HTTP_200_OK)
+
+
+class CancelInviteUserView(GenericAPIView):
+    """
+    invite user
+    """
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+
+    def put(self, request, *args, **kwargs):
+        invite_id = kwargs['invite_id']
+        list_instance = InvitedUser.objects.filter(id=invite_id)
+        if len(list_instance) != 1:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_msg': 'item not found'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        # if user status is accepted -> error
+        instance = list_instance[0]
+        if instance.status == settings.INVITATION_STATUS_ACCEPTED:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_msg': 'Cannot cancel accepted user'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        instance.status = settings.INVITATION_STATUS_CANCELED
+        instance.save()
+        # 3. final return res_code = 1, res_message: SUCCESS
+        return Response({'res_code': settings.RES_CODE_SUCCESS, 'res_message': 'success',
+                         'data': {'id': instance.id, 'status': instance.status}},
+                        status=status.HTTP_200_OK)
+
+
+class ListInvitedUserView(ListAPIView):
+    """
+    list all department.
+    if user is superuser -> api_id not NULL
+    if user is ceo(superadmin, admin) -> apt_id = apt of request.user
+    """
+    pagination_class = CustomPagination
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
+    serializer_class = InvitedUserSerializers
+
+    # paginate_by = 100
+    def set_extra_data_for_paginator(self, extra_data):
+        if self.paginator and hasattr(self.paginator, 'set_extra_attributes'):
+            self.paginator.set_extra_attributes(extra_data)
+
+    def get_queryset(self):
+        extra_data = {}
+        queryset = []
+        staff = self.request.user
+        if not utils.is_superuser(self.request.user):
+            # only same apartment
+            apartment = utils.get_apartment(staff)
+            extra_data['apt_id'] = apartment.id
+            extra_data['apt_name'] = apartment.name
+            extra_data['is_superuser'] = False
+            list_item = InvitedUser.objects.filter(apartment_id=apartment.id) \
+                .exclude(status=settings.INVITATION_STATUS_ACCEPTED).order_by('id')
+            queryset = list_item
+        else:
+            extra_data['is_superuser'] = True
+            extra_data['apt_id'] = None
+            extra_data['apt_name'] = None
+            #
+            list_apt = InvitedUser.objects.filter().exclude(status=settings.INVITATION_STATUS_ACCEPTED).order_by('id')
+            queryset = list_apt
+
+        self.set_extra_data_for_paginator(extra_data)
+        return queryset
+
+
+class ListAcceptedUserView(ListAPIView):
+    """
+    list all accepted user
+    """
+    pagination_class = CustomPagination
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
+    serializer_class = InvitedUserSerializers
+
+    # paginate_by = 100
+    def set_extra_data_for_paginator(self, extra_data):
+        if self.paginator and hasattr(self.paginator, 'set_extra_attributes'):
+            self.paginator.set_extra_attributes(extra_data)
+
+    def get_queryset(self):
+        extra_data = {}
+        queryset = []
+        staff = self.request.user
+        if not utils.is_superuser(self.request.user):
+            # only same apartment
+            apartment = utils.get_apartment(staff)
+            extra_data['apt_id'] = apartment.id
+            extra_data['apt_name'] = apartment.name
+            extra_data['is_superuser'] = False
+            list_item = InvitedUser.objects.filter(apartment_id=apartment.id,
+                                                   status=settings.INVITATION_STATUS_ACCEPTED).order_by('id')
+            queryset = list_item
+        else:
+            extra_data['is_superuser'] = True
+            extra_data['apt_id'] = None
+            extra_data['apt_name'] = None
+            #
+            list_item = InvitedUser.objects.filter(status=settings.INVITATION_STATUS_ACCEPTED).order_by('id')
+            queryset = list_item
+
+        self.set_extra_data_for_paginator(extra_data)
+        return queryset

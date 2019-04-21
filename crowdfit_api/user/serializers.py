@@ -13,11 +13,7 @@ from django.contrib.auth.hashers import make_password
 from crowdfit_api.user.models import Country, City, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, \
     UserHousehold, Department, Role, \
     DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club, \
-    DepartmentIndex
-
-
-# TODO: make sure the full info serializer actually has all of the information
-
+    DepartmentIndex, InvitedUser
 
 # User(
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -46,7 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = (
-            'id', 'username', 'email', 'password', 'nickname', 'fullname', 'birthday', 'gender', 'phone', "blood_type")
+            'id', 'username', 'email', 'password', 'nickname', 'fullname', 'birthday', 'gender', 'phone', "blood_type", 'create_date')
         extra_kwargs = {'password': {'write_only': True, 'required': True}}
 
 
@@ -494,6 +490,21 @@ class ClubSerializers(serializers.ModelSerializer):
             'id', 'apartment', 'name', 'phone', 'club_register_number', 'club_register_date', 'ot_number', 'ot_period',
             'description',
             'apartment_club_list', 'address_club_list',
+            'create_date', 'last_update')
+        extra_kwargs = {'last_update': {'read_only': True},
+                        'create_date': {'read_only': True}}
+
+
+class InvitedUserSerializers(serializers.ModelSerializer):
+    user_iu_list = UserSerializer(many=True, read_only=True)
+    apartment_iu_list = ApartmentSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = InvitedUser
+        fields = (
+            'id', 'fullname', 'phone', 'address_dong', 'house_number', 'status',
+            'user', 'user_iu_list',
+            'apartment', 'apartment_iu_list',
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}

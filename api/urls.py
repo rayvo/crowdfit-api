@@ -14,7 +14,7 @@ from api.views import CrowdfitObtainAuthToken, CrowdfitRegisterView, UploadUserD
     UserRegisterView, StaffRegisterView, CreateDepartmentRoleView, DeleteDepartmentRoleView, ApproveCEOView, \
     ListUserRoleStatusView, ListUserByStatusView, RequestUserRoleStatusView, ListStaffByStatusView, ApproveUserView, \
     ApproveStaffView, ListAllDepartmentView, ListAllRoleOfDepartmentView, UpdateDepartmentRoleView, SearchUserView, \
-    DisapproveView
+    DisapproveView, InvitedUserView, ReinviteUserView, CancelInviteUserView, ListInvitedUserView, ListAcceptedUserView
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
@@ -58,7 +58,13 @@ urlpatterns = [
     path('list_all_role_of_department/<int:department_id>/', ListAllRoleOfDepartmentView.as_view()),
     path('update_dep_role/<int:dep_role_id>/', UpdateDepartmentRoleView.as_view()),
     path('search_user/', SearchUserView.as_view()),
-    path('disapprove/', DisapproveView.as_view()),
+    path('refuse_request/<int:id>/', DisapproveView.as_view()),
+
+    path('invite_user/', InvitedUserView.as_view()),
+    path('reinvite_user/<int:invite_id>', ReinviteUserView.as_view()),
+    path('cancel_invited_user/<int:invite_id>', CancelInviteUserView.as_view()),
+    path('list_invited_user/', ListInvitedUserView.as_view()),
+    path('list_accepted_user/', ListAcceptedUserView.as_view()),
 ]
 
 if settings.DEBUG:

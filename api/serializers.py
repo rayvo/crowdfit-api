@@ -6,7 +6,6 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 # for lazy text
-from django.core.validators import RegexValidator
 from django.utils.translation import ugettext_lazy as _
 
 from rest_framework import serializers, status
@@ -17,7 +16,7 @@ from django.contrib.auth import get_user_model
 # for custom user
 from django.conf import settings
 
-from crowdfit_api.user.models import City
+from crowdfit_api.user.models import City, InvitedUser
 
 CustomUser = get_user_model()
 
@@ -466,9 +465,26 @@ class UpdateDepartmentRoleSerializer(serializers.Serializer):
         fields = ('role_id', 'is_active')
 
 class DisapproveSerializer(serializers.Serializer):
-    id = serializers.IntegerField(allow_null=False, required=True)
+    # id = serializers.IntegerField(allow_null=False, required=True)
     reason = serializers.CharField(allow_null=True, required=False)
 
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
+class InvitedUserSerializer(serializers.Serializer):
+    fullname = serializers.CharField(max_length=150, required=True, allow_null=False)
+    phone = serializers.CharField(max_length=15, allow_null=True, required=False, validators=[settings.PHONE_REGEX])
+    apartment_id = serializers.IntegerField(required=True, allow_null=False)
+    address_dong = serializers.CharField(max_length=10, required=True, allow_null=False)
+    house_number = serializers.CharField(max_length=10, required=True, allow_null=False)
+    
+    def create(self, validated_data):
+        instance = InvitedUser(user=None, 
+                               apartment_id=validated_data['apartment_id'],
+                               fullname=validated_data['fullname'],
+                               phone=validated_data['phone'],
+                               address_dong=validated_data['address_dong'],
+                               house_number=validated_data['house_number'],
+                               status=settings.INVITATION_STATUS_INVITED,
+                               )
+        return instance
