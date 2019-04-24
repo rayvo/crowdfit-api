@@ -24,22 +24,30 @@ DEBUG = True
 # SECURITY WARNING: only allow specifc IP's to be allowed as hosts
 # 210.105.48.120 is clubfit's public ip server
 # 192.168.1.6 is clubfit's private ip server
+# HASEUNG added below
+# 192.168.1.5 is 담비's local workspace
 # 192.168.0.5 is Haseung's local workspace
 ALLOWED_HOSTS = [
     '210.105.48.120',
     '192.168.1.6',
+    '192.168.1.5',
     '192.168.0.5',
     '127.0.0.1',
     'localhost',
 ]
 # ALLOWED_HOSTS = []
 # 192.168.0.x is the local IP gateway for clubfit
-# CORS_ORIGIN_WHITELIST = (
-#     'localhost:4200',
-#     '192.168.0.*'
-# )
+# HASEUNG added 210.105.48.120, and 192.168.1.*
 CORS_ORIGIN_WHITELIST = (
+    'localhost:4200',
+    '192.168.0.*',
+    '192.168.1.*',
+    '210.105.48.120:4200',
+    '192.168.1.6:4200',
+
 )
+#CORS_ORIGIN_WHITELIST = (
+#)
 # This is to allow certain IP's to pass CORS Policy and access db
 CORS_ALLOW_CREDENTIALS = True
 
