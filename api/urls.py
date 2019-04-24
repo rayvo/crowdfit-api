@@ -14,15 +14,18 @@ from api.views import CrowdfitObtainAuthToken, CrowdfitRegisterView, UploadUserD
     UserRegisterView, StaffRegisterView, CreateDepartmentRoleView, DeleteDepartmentRoleView, ApproveCEOView, \
     ListUserRoleStatusView, ListUserByStatusView, RequestUserRoleStatusView, ListStaffByStatusView, ApproveUserView, \
     ApproveStaffView, ListAllDepartmentView, ListAllRoleOfDepartmentView, UpdateDepartmentRoleView, SearchUserView, \
-    DisapproveView, InvitedUserView, ReinviteUserView, CancelInviteUserView, ListInvitedUserView, ListAcceptedUserView
+    DisapproveView, InvitedUserView, ReinviteUserView, CancelInviteUserView, ListInvitedUserView, ListAcceptedUserView, BLEPostDataView
 
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
-from crowdfit_api.user.views import ApartmentViewSet, DepartmentViewSet
+from crowdfit_api.user.views import ApartmentViewSet, DepartmentViewSet, DeviceTypeViewSet, APTDeviceViewSet, UserDeviceViewSet
 
 router = routers.DefaultRouter()
 router.register('apartment', ApartmentViewSet)
 router.register('department', DepartmentViewSet)
+router.register('device_type', DeviceTypeViewSet)
+router.register('apt_device', APTDeviceViewSet)
+router.register('user_device', UserDeviceViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -65,6 +68,7 @@ urlpatterns = [
     path('cancel_invited_user/<int:invite_id>', CancelInviteUserView.as_view()),
     path('list_invited_user/', ListInvitedUserView.as_view()),
     path('list_accepted_user/', ListAcceptedUserView.as_view()),
+    path('ble_request/', BLEPostDataView.as_view()),
 ]
 
 if settings.DEBUG:

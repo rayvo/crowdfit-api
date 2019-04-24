@@ -8,13 +8,15 @@ from __future__ import unicode_literals
 
 from django.contrib.auth import get_user_model
 
+from api.permissions import IsCrowdfitAuthenticated
+
 User = get_user_model()
 from rest_framework import viewsets
 # my app models
 from crowdfit_api.user.models import Country, City, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, \
     UserHousehold, Department, Role, \
     DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club, \
-    DepartmentIndex
+    DepartmentIndex, DeviceType, APTDevice, UserDevice
 
 # my app serializers
 from crowdfit_api.user.serializers import UserSerializer, CountrySerializers, CitySerializers, \
@@ -22,7 +24,8 @@ from crowdfit_api.user.serializers import UserSerializer, CountrySerializers, Ci
     DocumentFileSerializers, UserHouseholdSerializers, \
     DepartmentSerializers, RoleSerializers, DepartmentRoleSerializers, UserRoleStatusSerializers, PermissionSerializers, \
     AppFeatureSerializers, RoleFeaturePermissionSerializers, \
-    LoginSerializers, UserBodyInfoSerializers, ClubSerializers, DepartmentIndexSerializers
+    LoginSerializers, UserBodyInfoSerializers, ClubSerializers, DepartmentIndexSerializers, DeviceTypeSerializers, APTDeviceSerializers, \
+    UserDeviceSerializers
 
 
 # Create your views here.
@@ -146,3 +149,19 @@ class UserBodyInfoViewSet(viewsets.ModelViewSet):
 class ClubViewSet(viewsets.ModelViewSet):
     queryset = Club.objects.all().order_by('-id')
     serializer_class = ClubSerializers
+
+
+class DeviceTypeViewSet(viewsets.ModelViewSet):
+    queryset = DeviceType.objects.all().order_by('-id')
+    serializer_class = DeviceTypeSerializers
+
+
+class APTDeviceViewSet(viewsets.ModelViewSet):
+    queryset = APTDevice.objects.all().order_by('-id')
+    serializer_class = APTDeviceSerializers
+
+
+class UserDeviceViewSet(viewsets.ModelViewSet):
+    queryset = UserDevice.objects.all().order_by('-id')
+    serializer_class = UserDeviceSerializers
+    permission_classes = (IsCrowdfitAuthenticated, )

@@ -214,7 +214,7 @@ class UpdateUserSerializer(serializers.Serializer):
 class CEORegisterSerializer(serializers.Serializer):
     # user_id = serializers.IntegerField(allow_null=False, required=True)
     # document_file_id = serializers.IntegerField(allow_null=True, required=False)
-    document_file = serializers.FileField(allow_null=False, required=False)
+    document_file = serializers.FileField(allow_null=True, required=False)
     apt_name = serializers.CharField(max_length=150, allow_null=False, required=True)
     city_id = serializers.IntegerField(allow_null=False)
     address_gu = serializers.CharField(max_length=50, allow_null=False)
@@ -464,6 +464,7 @@ class UpdateDepartmentRoleSerializer(serializers.Serializer):
     class Meta:
         fields = ('role_id', 'is_active')
 
+
 class DisapproveSerializer(serializers.Serializer):
     # id = serializers.IntegerField(allow_null=False, required=True)
     reason = serializers.CharField(allow_null=True, required=False)
@@ -471,15 +472,16 @@ class DisapproveSerializer(serializers.Serializer):
     def create(self, validated_data):
         return Response(data={}, status=status.HTTP_403_FORBIDDEN)
 
+
 class InvitedUserSerializer(serializers.Serializer):
     fullname = serializers.CharField(max_length=150, required=True, allow_null=False)
     phone = serializers.CharField(max_length=15, allow_null=True, required=False, validators=[settings.PHONE_REGEX])
     apartment_id = serializers.IntegerField(required=True, allow_null=False)
     address_dong = serializers.CharField(max_length=10, required=True, allow_null=False)
     house_number = serializers.CharField(max_length=10, required=True, allow_null=False)
-    
+
     def create(self, validated_data):
-        instance = InvitedUser(user=None, 
+        instance = InvitedUser(user=None,
                                apartment_id=validated_data['apartment_id'],
                                fullname=validated_data['fullname'],
                                phone=validated_data['phone'],
@@ -488,3 +490,22 @@ class InvitedUserSerializer(serializers.Serializer):
                                status=settings.INVITATION_STATUS_INVITED,
                                )
         return instance
+
+
+class BLEPostDataSerializer(serializers.Serializer):
+
+    timestamp = serializers.DateTimeField(required=True)
+    type = serializers.CharField(max_length=255, required=True)
+    mac = serializers.CharField(max_length=255, required=True)
+    bleName = serializers.CharField(max_length=255, required=False, allow_null=True, allow_blank=True)
+    rssi = serializers.IntegerField(required=False)
+    rawData = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    # if type == gateway
+    gatewayFree = serializers.CharField(max_length=255, required=False, allow_null=True)
+    gatewayLoad = serializers.CharField(max_length=255, required=False, allow_null=True)
+
+    def create(self, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)
+
+    def update(self, instance, validated_data):
+        return Response(data={}, status=status.HTTP_403_FORBIDDEN)

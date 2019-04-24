@@ -17,6 +17,7 @@ from rest_framework.schemas import ManualSchema
 from django.utils import timezone
 
 from api import utils
+from api.models import BLEPostData, GateWayData, UserDeviceData
 from api.pagination import CustomPagination
 from api.permissions import IsCrowdfitCEOUser, IsCrowdfitAuthenticated, IsCrowdfitSuperUser, IsCrowdfitAdminUser
 from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerializer, RegisterSerializer, \
@@ -25,9 +26,9 @@ from api.serializers import CrowdfitAuthTokenSerializer, PhoneVerificationSerial
     DeleteApartmentSerializer, UserRegisterSerializer, StaffRegisterSerializer, CreateDepartmentRoleSerializer, \
     DeleteDepartmentRoleSerializer, ApproveCEOSerializer, ListUserByStatusSerializer, RequestUserRoleStatusSerializer, \
     ListStaffByStatusSerializer, ApproveStaffSerializer, ApproveUserSerializer, UpdateDepartmentRoleSerializer, \
-    DisapproveSerializer, InvitedUserSerializer
+    DisapproveSerializer, InvitedUserSerializer, BLEPostDataSerializer
 from crowdfit_api.user.models import DocumentFile, UserRoleStatus, Login, Apartment, DepartmentIndex, Department, \
-    DepartmentRole, Role, Status, Household, UserHousehold, InvitedUser
+    DepartmentRole, Role, Status, Household, UserHousehold, InvitedUser, APTDevice, UserDevice
 from crowdfit_api.user.serializers import UserRoleStatusSerializers, UserSerializer, DepartmentSerializers, \
     RoleSerializers, InvitedUserSerializers
 
@@ -453,6 +454,11 @@ class CEORegisterView(GenericAPIView):
             except Role.DoesNotExist:
                 return Response({'res_code': 0, 'res_message': 'role ceo not found', 'fullname': None},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            try:
+                role_resident = Role.objects.get(id=settings.CROWDFIT_API_ROLE_NAME_RESIDENT_ID)
+            except Role.DoesNotExist:
+                return Response({'res_code': 0, 'res_message': 'role resident not found', 'fullname': None},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             # check existing department index admin id
             try:
                 _ = DepartmentIndex.objects.get(id=settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID)
@@ -487,21 +493,32 @@ class CEORegisterView(GenericAPIView):
             # 2.2  get all dep-index and for each dep-idex -> insert department
             list_dep_idx = DepartmentIndex.objects.all()
             admin_department = None
+            department_community = None
             for department_index in list_dep_idx:
                 new_dep = Department(apartment=apt, department_index=department_index)
                 new_dep.save()
                 if department_index.id == settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID:
                     admin_department = new_dep
+                elif department_index.id == settings.CROWDFIT_API_DEPARTMENT_INDEX_COMMUNITY_ID:
+                    department_community = new_dep
 
             # 2.3 Insert  a new row into  DepartmentRole with department_id is Adminstration ID,
             # and role_id is the ceo id (in table role)
             # 2.3.1 get admin role
             # 2.3.2 create and insert department-role
+            # 2.3.2.1 dep-role: admin-ceo
             dep_role = DepartmentRole()
             dep_role.department = admin_department
             dep_role.role = role_ceo
             dep_role.is_active = True
             dep_role.save()
+            # 2.3.2.2 dep-role: community-resident
+            dep_role_community_resident = DepartmentRole()
+            dep_role_community_resident.department = department_community
+            dep_role_community_resident.role = role_resident
+            dep_role_community_resident.is_active = True
+            dep_role_community_resident.save()
+
             # 2.3.3. save file to table documentfile
             doc_file = DocumentFile()
             document_file_id = None
@@ -970,7 +987,7 @@ class ApproveCEOView(GenericAPIView):
         3. Insert new row into Userhousehole with is_owner = TRUE, is_active = TRUE
         4. return res_code = 1/ return res_msg=""REQUEST SUCCESS)
         """
-        return data.department_role.department_id == settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID \
+        return data.department_role.department.department_index_id == settings.CROWDFIT_API_DEPARTMENT_INDEX_ADMIN_ID \
                and data.department_role.role_id == settings.CROWDFIT_API_ROLE_NAME_CEO_ID
 
     def put(self, request):
@@ -1279,7 +1296,8 @@ class ListUserByStatusView(ListAPIView):
         for item in list_user_role_status:
             if self.is_valid_user_role_status(item):
                 # 1. user-info
-                tmp = {'fullname': item.user.fullname, 'phone': item.user.phone, 'user_id': item.user_id, 'create_date': item.user.create_date}
+                tmp = {'fullname': item.user.fullname, 'phone': item.user.phone, 'user_id': item.user_id,
+                       'create_date': item.user.create_date}
                 # 2. house-hold info
                 list_user_household = UserHousehold.objects.filter(user_id=item.user_id)
                 if len(list_user_household) > 0:
@@ -1384,7 +1402,8 @@ class ListAllDepartmentView(ListAPIView):
     if user is ceo(superadmin, admin) -> apt_id = apt of request.user
     """
     pagination_class = CustomPagination
-    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitAdminUser,)
+    #permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitAdminUser,)
+    permission_classes = ()
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
     # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
@@ -1398,26 +1417,34 @@ class ListAllDepartmentView(ListAPIView):
     def get_queryset(self):
         apt_id = self.kwargs.get('apt_id')
         extra_data = {}
-        if not utils.is_superuser(self.request.user):
-            # if not same apt -> return empty
-            user_apt = utils.get_apartment(self.request.user)
-            extra_data['apt_name'] = user_apt.name
-            extra_data['is_superuser'] = False
-            if user_apt.id != apt_id:
-                queryset = []
-                self.set_extra_data_for_paginator(extra_data)
-                return queryset
+        # if not utils.is_superuser(self.request.user):
+        #     # if not same apt -> return empty
+        #     user_apt = utils.get_apartment(self.request.user)
+        #     extra_data['apt_name'] = user_apt.name
+        #     extra_data['is_superuser'] = False
+        #     if user_apt.id != apt_id:
+        #         queryset = []
+        #         self.set_extra_data_for_paginator(extra_data)
+        #         return queryset
+        # else:
+        #     list_apt = Apartment.objects.filter(id=apt_id)
+        #     extra_data['is_superuser'] = True
+        #     if len(list_apt) == 1:
+        #         extra_data['apt_name'] = list_apt[0].name
+        #     else:
+        #         # apt not found
+        #         queryset = []
+        #         self.set_extra_data_for_paginator(extra_data)
+        #         return queryset
+        list_apt = Apartment.objects.filter(id=apt_id)
+        # extra_data['is_superuser'] = True
+        if len(list_apt) == 1:
+            extra_data['apt_name'] = list_apt[0].name
         else:
-            list_apt = Apartment.objects.filter(id=apt_id)
-            extra_data['is_superuser'] = True
-            if len(list_apt) == 1:
-                extra_data['apt_name'] = list_apt[0].name
-            else:
-                # apt not found
-                queryset = []
-                self.set_extra_data_for_paginator(extra_data)
-                return queryset
-
+            # apt not found
+            queryset = []
+            self.set_extra_data_for_paginator(extra_data)
+            return queryset
         # same apt
         list_department = Department.objects.filter(apartment_id=apt_id).order_by('id')
         queryset = list_department
@@ -1432,7 +1459,8 @@ class ListAllRoleOfDepartmentView(ListAPIView):
     others check whether in apt or not
     """
     pagination_class = CustomPagination
-    permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitAdminUser,)
+    #permission_classes = (IsCrowdfitAuthenticated, IsCrowdfitAdminUser,)
+    permission_classes = ()
     parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
     renderer_classes = (renderers.JSONRenderer,)
     # https://www.django-rest-framework.org/api-guide/filtering/#filtering-against-the-url
@@ -1830,3 +1858,42 @@ class ListAcceptedUserView(ListAPIView):
 
         self.set_extra_data_for_paginator(extra_data)
         return queryset
+
+
+class BLEPostDataView(GenericAPIView):
+    permission_classes = (IsCrowdfitAuthenticated,)
+    parser_classes = (parsers.FormParser, parsers.MultiPartParser, parsers.JSONParser,)
+    renderer_classes = (renderers.JSONRenderer,)
+    serializer_class = BLEPostDataSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request}, many=True)
+        serializer.is_valid(raise_exception=True)
+        # if validate fail, exception will raise, below code is not reached
+        gateway_device_data = None
+        list_user_device = []
+        for item in serializer.validated_data:
+            ble_post_data = BLEPostData(item)
+            if ble_post_data.is_gateway():
+                list_found_apt_device = APTDevice.objects.filter(mac_address=ble_post_data.mac, status=settings.APTDEVICE_STATUS_IN_USE)
+                if len(list_found_apt_device) == 1:
+                    gateway_device_data = GateWayData(ble_post_data=ble_post_data, apt_device=list_found_apt_device[0])
+            else:
+                list_found_user_device = UserDevice.objects.filter(mac_address=ble_post_data.mac, is_active=True)
+                if len(list_found_user_device) == 1:
+                    user_device_data = UserDeviceData(ble_post_data=ble_post_data, user_device=list_found_user_device[0])
+                    list_user_device.append(user_device_data)
+
+        if not gateway_device_data:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'gateway not found'}, status=status.HTTP_200_OK)
+        if len(list_user_device) == 0:
+            return Response({'res_code': settings.RES_CODE_FAIL, 'res_message': 'user not found'}, status=status.HTTP_200_OK)
+        # data valid, do logic
+        # 0. do logic: checkin - checkout
+        tz_now = timezone.now()
+        diff_days = utils.diff_in_day(tz_now, gateway_device_data.ble_post_data.timestamp)
+        print(diff_days)
+        # 1. checkin
+        # 1. check is check-in TODAY,
+        # 1.1 if already checkin
+        return Response({'res_code': settings.RES_CODE_SUCCESS, 'res_message': 'success', 'data': {}}, status=status.HTTP_200_OK)

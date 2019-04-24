@@ -628,3 +628,85 @@ class InvitedUser(models.Model):
 
     def __str__(self):
         return str(self.id)
+
+
+# for smartband
+class DeviceType(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    # currently, we only work with: "gateway" and unknown
+    type = models.CharField(max_length=255, null=False, blank=False)
+    unit = models.CharField(max_length=15, null=False, blank=False)
+    #
+    create_date = models.DateTimeField(auto_now_add=True)
+    last_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
+
+
+class APTDevice(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    department = models.ForeignKey(Department, on_delete=models.CASCADE, related_name='department_aptdevice_list')
+    device_name = models.CharField(max_length=255, null=False, blank=False)
+    device_code = models.CharField(max_length=255, null=False, blank=False)
+    mac_address = models.CharField(max_length=255, null=False, blank=False, unique=True)
+    setup_location = models.CharField(max_length=255, null=False, blank=False)
+    device_type = models.ForeignKey(DeviceType, on_delete=models.CASCADE, related_name='devicetype_aptdevice_list')
+    # in_use, in_store, broken, fixing
+    status = models.IntegerField(choices=settings.APTDEVICE_STATUS_CHOICES, null=False)
+    #
+    create_date = models.DateTimeField(auto_now_add=True)
+    last_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
+
+
+class UserDevice(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_ud_list')
+    name = models.CharField(max_length=255, null=True, blank=True)
+    mac_address = models.CharField(max_length=255, null=False, blank=False, unique=True)
+    device_type = models.ForeignKey(DeviceType, on_delete=models.CASCADE, related_name='devicetype_ud_list')
+    # in_use, in_store, broken, fixing
+    is_active = models.BooleanField(null=False)
+    #
+    create_date = models.DateTimeField(auto_now_add=True)
+    last_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
+
+
+class CheckinCheckout(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='user_cico_list')
+    first_tracking_device = models.ForeignKey(APTDevice, on_delete=models.CASCADE, related_name='firstaptdevice_cico_list')
+    is_checkin = models.BooleanField(null=False, default=False)
+    checkin_create_date = models.DateTimeField(auto_now_add=True)
+    checkin_last_update = models.DateTimeField(auto_now=True)
+    last_tracking_device = models.ForeignKey(APTDevice, on_delete=models.CASCADE, related_name='lastaptdevice_cico_list')
+    is_checkout = models.BooleanField(null=False, default=False)
+    checkout_create_date = models.DateTimeField(auto_now_add=True)
+    checkout_last_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
+
+
+class UserTracking(models.Model):
+    # ID is by default
+    # id = models.AutoField(primary_key=True)
+    checkin_checkout = models.ForeignKey(CheckinCheckout, on_delete=models.CASCADE, related_name='checkin_checkout_ut_list')
+    tracking_device = models.ForeignKey(APTDevice, on_delete=models.CASCADE, related_name='aptdevice_ut_list')
+    rssi = models.IntegerField(null=False)
+    #
+    create_date = models.DateTimeField(auto_now_add=True)
+    last_update = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)

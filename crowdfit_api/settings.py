@@ -223,6 +223,19 @@ GENDER_CHOICES = (
     (1, "Male"),
     (2, "Female")
 )
+# for status of APT-Device
+APTDEVICE_STATUS_IN_USE = 1
+APTDEVICE_STATUS_IN_STORE = 2
+APTDEVICE_STATUS_IN_BROKEN = 3
+APTDEVICE_STATUS_IN_FIXING = 4
+
+APTDEVICE_STATUS_CHOICES = (
+    (APTDEVICE_STATUS_IN_USE, "In-use"),
+    (APTDEVICE_STATUS_IN_STORE, "In store"),
+    (APTDEVICE_STATUS_IN_BROKEN, "Broken"),
+    (APTDEVICE_STATUS_IN_FIXING, "Fixing"),
+)
+
 PHONE_REGEX = RegexValidator(regex=r'^(\+82[- ]*10[- ]*[0-9]{4}[- ]*[0-9]{4}|010[- ]*[0-9]{4}[- ]*[0-9]{4})$',
                              message="Phone number must be entered in the format: '+82-10-xxxx-xxxx or 010-xxxx-xxxx")
 # CROWDFIT_API_ROLE_NAME_CEO = 'ceo'

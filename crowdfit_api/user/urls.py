@@ -24,9 +24,6 @@ router.register('login', views.LoginViewSet)
 router.register('userbodyinfo', views.UserBodyInfoViewSet)
 router.register('club', views.ClubViewSet)
 
-
-
-
 # Wire up our API using automatic URL routing.
 # Additionally, we include login URLs for the browsable API.
 urlpatterns = [

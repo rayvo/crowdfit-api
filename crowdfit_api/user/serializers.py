@@ -13,7 +13,8 @@ from django.contrib.auth.hashers import make_password
 from crowdfit_api.user.models import Country, City, Apartment, Household, ImageFile, UserAvatar, Status, DocumentFile, \
     UserHousehold, Department, Role, \
     DepartmentRole, UserRoleStatus, Permission, AppFeature, RoleFeaturePermission, Login, UserBodyInfo, Club, \
-    DepartmentIndex, InvitedUser
+    DepartmentIndex, InvitedUser, APTDevice, DeviceType, UserDevice
+
 
 # User(
 #     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -42,7 +43,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = (
-            'id', 'username', 'email', 'password', 'nickname', 'fullname', 'birthday', 'gender', 'phone', "blood_type", 'create_date')
+            'id', 'username', 'email', 'password', 'nickname', 'fullname', 'birthday', 'gender', 'phone', "blood_type",
+            'create_date')
         extra_kwargs = {'password': {'write_only': True, 'required': True}}
 
 
@@ -505,6 +507,46 @@ class InvitedUserSerializers(serializers.ModelSerializer):
             'id', 'fullname', 'phone', 'address_dong', 'house_number', 'status',
             'user', 'user_iu_list',
             'apartment', 'apartment_iu_list',
+            'create_date', 'last_update')
+        extra_kwargs = {'last_update': {'read_only': True},
+                        'create_date': {'read_only': True}}
+
+
+class DeviceTypeSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = DeviceType
+        fields = (
+            'id', 'type', 'unit',
+            'create_date', 'last_update')
+        extra_kwargs = {'last_update': {'read_only': True},
+                        'create_date': {'read_only': True}}
+
+
+class APTDeviceSerializers(serializers.ModelSerializer):
+    department_aptdevice_list = DepartmentSerializers(many=True, read_only=True)
+    devicetype_aptdevice_list = DeviceTypeSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = APTDevice
+        fields = (
+            'id', 'device_name', 'device_code', 'mac_address', 'setup_location', 'status',
+            'department', 'department_aptdevice_list',
+            'device_type', 'devicetype_aptdevice_list',
+            'create_date', 'last_update')
+        extra_kwargs = {'last_update': {'read_only': True},
+                        'create_date': {'read_only': True}}
+
+
+class UserDeviceSerializers(serializers.ModelSerializer):
+    user_ud_list = UserSerializer(many=True, read_only=True)
+    devicetype_ud_list = DeviceTypeSerializers(many=True, read_only=True)
+
+    class Meta:
+        model = UserDevice
+        fields = (
+            'id', 'name', 'mac_address', 'is_active',
+            'user', 'user_ud_list',
+            'device_type', 'devicetype_ud_list',
             'create_date', 'last_update')
         extra_kwargs = {'last_update': {'read_only': True},
                         'create_date': {'read_only': True}}
